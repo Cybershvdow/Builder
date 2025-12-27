@@ -1,0 +1,204 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --ace-black: #1a1a1a;
+  --ace-gold: #C9A86C;
+  --ace-gold-light: #D4BC8E;
+  --ace-gold-dark: #B8955A;
+  --ace-cream: #F5F0E8;
+  --ace-dark: #0D0D0D;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: #f5f5f5;
+  color: var(--ace-black);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ace-gold);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ace-gold-dark);
+}
+
+/* Calendar styles */
+.rbc-calendar {
+  font-family: 'Inter', sans-serif;
+}
+
+.rbc-header {
+  padding: 12px 8px;
+  font-weight: 600;
+  background-color: var(--ace-black);
+  color: white;
+}
+
+.rbc-today {
+  background-color: rgba(201, 168, 108, 0.1);
+}
+
+.rbc-event {
+  background-color: var(--ace-gold) !important;
+  border: none !important;
+  border-radius: 4px;
+  color: var(--ace-black) !important;
+  font-weight: 500;
+}
+
+.rbc-event:hover {
+  background-color: var(--ace-gold-dark) !important;
+}
+
+.rbc-selected {
+  background-color: var(--ace-gold-dark) !important;
+}
+
+.rbc-off-range-bg {
+  background-color: #f9f9f9;
+}
+
+/* Form styles */
+.form-input {
+  @apply w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ace-gold focus:border-ace-gold transition-all;
+}
+
+.form-label {
+  @apply block text-sm font-medium text-gray-700 mb-1.5;
+}
+
+/* Button styles */
+.btn-primary {
+  @apply px-4 py-2.5 bg-ace-gold text-ace-black font-semibold rounded-lg hover:bg-ace-gold-dark transition-colors focus:ring-2 focus:ring-ace-gold focus:ring-offset-2;
+}
+
+.btn-secondary {
+  @apply px-4 py-2.5 bg-ace-black text-white font-semibold rounded-lg hover:bg-gray-800 transition-colors focus:ring-2 focus:ring-ace-black focus:ring-offset-2;
+}
+
+.btn-outline {
+  @apply px-4 py-2.5 border-2 border-ace-gold text-ace-gold font-semibold rounded-lg hover:bg-ace-gold hover:text-ace-black transition-colors focus:ring-2 focus:ring-ace-gold focus:ring-offset-2;
+}
+
+/* Card styles */
+.card {
+  @apply bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden;
+}
+
+.card-header {
+  @apply px-6 py-4 border-b border-gray-100;
+}
+
+.card-body {
+  @apply p-6;
+}
+
+/* Badge styles */
+.badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.badge-gold {
+  @apply bg-ace-gold/20 text-ace-gold-dark;
+}
+
+.badge-green {
+  @apply bg-green-100 text-green-800;
+}
+
+.badge-red {
+  @apply bg-red-100 text-red-800;
+}
+
+.badge-blue {
+  @apply bg-blue-100 text-blue-800;
+}
+
+.badge-gray {
+  @apply bg-gray-100 text-gray-800;
+}
+
+/* Animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Loading spinner */
+.spinner {
+  @apply animate-spin rounded-full border-2 border-ace-gold border-t-transparent;
+}
+
+/* Mobile responsive utilities */
+@media (max-width: 768px) {
+  .mobile-hidden {
+    display: none !important;
+  }
+
+  .mobile-full-width {
+    width: 100% !important;
+  }
+}
+
+/* Print styles for timesheets */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .print-full-width {
+    width: 100% !important;
+    max-width: none !important;
+  }
+}
