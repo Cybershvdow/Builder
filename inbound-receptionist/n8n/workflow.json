@@ -1,0 +1,557 @@
+{
+  "name": "Ace Noir Inbound Receptionist",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "inbound-call",
+        "authentication": "headerAuth",
+        "options": {
+          "responseMode": "responseNode"
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook - Inbound Call",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "ace-noir-inbound"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate webhook payload and extract call data\nconst payload = $input.first().json;\n\n// Required field validation\nif (!payload.call_id) {\n  throw new Error('Missing required field: call_id');\n}\nif (!payload.event_type) {\n  throw new Error('Missing required field: event_type');\n}\n\n// Only process call_end events for full processing\nif (payload.event_type !== 'call_end') {\n  return [{\n    json: {\n      status: 'acknowledged',\n      call_id: payload.call_id,\n      event_type: payload.event_type,\n      message: 'Event acknowledged, no processing needed'\n    }\n  }];\n}\n\n// Extract transcript\nconst transcript = payload.transcript?.full_text || payload.transcript?.partial_text || '';\n\nreturn [{\n  json: {\n    call_id: payload.call_id,\n    event_type: payload.event_type,\n    caller_phone: payload.caller_phone || '',\n    call_duration_seconds: payload.call_duration_seconds || 0,\n    transcript: transcript,\n    voice_platform: payload.voice_platform?.provider || 'unknown',\n    recording_url: payload.metadata?.recording_url || null,\n    timestamp: payload.timestamp || new Date().toISOString(),\n    process_full: true\n  }\n}];"
+      },
+      "id": "validate-payload",
+      "name": "Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "process-check",
+              "leftValue": "={{ $json.process_full }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-process",
+      "name": "Needs Full Processing?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-ack",
+      "name": "Respond - Acknowledged",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 450]
+    },
+    {
+      "parameters": {
+        "model": "claude-3-sonnet-20240229",
+        "messages": {
+          "values": [
+            {
+              "content": "You are the AI intake processor for Ace Noir Cleaning Services. Analyze the following call transcript and extract structured lead data.\n\nIMPORTANT RULES:\n1. Check if recording consent was given (look for phrases like \"is that okay\" response)\n2. Detect intent: walkthrough_request, quote_request, info_request, existing_customer, spam\n3. Extract all available lead information\n4. NEVER include pricing - mark price_discussed: false\n5. For locations outside LA County, set in_service_area: false\n\nOutput ONLY valid JSON matching this structure (no markdown, no explanation):\n{\n  \"consent_status\": \"granted\" | \"denied\" | \"not_asked\",\n  \"intent\": \"walkthrough_request\" | \"quote_request\" | \"info_request\" | \"existing_customer\" | \"spam\" | \"unknown\",\n  \"lead_status\": \"new_lead\" | \"booked\" | \"info_only\" | \"existing_customer\" | \"spam\" | \"follow_up_needed\",\n  \"contact\": {\n    \"caller_name\": \"string or null\",\n    \"phone_confirmed\": \"boolean\",\n    \"email\": \"string or null\"\n  },\n  \"business\": {\n    \"business_name\": \"string or null\",\n    \"facility_type\": \"office\" | \"medical\" | \"dental\" | \"school\" | \"warehouse\" | \"retail\" | \"restaurant\" | \"other\" | null\n  },\n  \"location\": {\n    \"street_address\": \"string or null\",\n    \"city\": \"string or null\",\n    \"state\": \"CA\",\n    \"zip\": \"string or null\",\n    \"in_service_area\": \"boolean\"\n  },\n  \"facility_details\": {\n    \"approx_sqft\": \"number or null\",\n    \"num_restrooms\": \"number or null\",\n    \"has_breakroom\": \"boolean or null\"\n  },\n  \"service_requirements\": {\n    \"frequency\": \"string or null\",\n    \"preferred_time\": \"string or null\",\n    \"timeline\": \"string or null\",\n    \"timeline_urgency\": \"asap\" | \"within_2_weeks\" | \"within_month\" | \"flexible\" | null\n  },\n  \"special_requirements\": {\n    \"security_requirements\": \"string or null\",\n    \"compliance_requirements\": \"array of strings\",\n    \"other_notes\": \"string or null\"\n  },\n  \"pain_points\": {\n    \"current_provider\": \"string or null\",\n    \"reason_for_switch\": \"string or null\",\n    \"specific_issues\": \"array of strings\"\n  },\n  \"walkthrough\": {\n    \"requested\": \"boolean\",\n    \"booked\": \"boolean\",\n    \"proposed_datetime\": \"ISO 8601 string or null\",\n    \"decision_maker_attending\": \"boolean or null\"\n  },\n  \"call_summary\": \"1-3 sentence summary of the call\"\n}",
+              "role": "system"
+            },
+            {
+              "content": "=Call ID: {{ $json.call_id }}\nCaller Phone: {{ $json.caller_phone }}\nCall Duration: {{ $json.call_duration_seconds }} seconds\n\nTRANSCRIPT:\n{{ $json.transcript }}",
+              "role": "user"
+            }
+          ]
+        },
+        "options": {
+          "maxTokens": 2048,
+          "temperature": 0.1
+        }
+      },
+      "id": "ai-extraction",
+      "name": "AI - Extract Lead Data",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1,
+      "position": [910, 180],
+      "credentials": {
+        "anthropicApi": {
+          "id": "ANTHROPIC_CREDENTIAL_ID",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI response and merge with call metadata\nconst callData = $('Validate Payload').first().json;\nconst aiResponse = $input.first().json;\n\n// Parse the AI output (handle potential JSON in message content)\nlet extracted;\ntry {\n  const content = aiResponse.message?.content || aiResponse.text || JSON.stringify(aiResponse);\n  // Try to extract JSON from the response\n  const jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n  extracted = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(content);\n} catch (e) {\n  throw new Error(`Failed to parse AI response: ${e.message}`);\n}\n\n// Generate lead_id\nconst today = new Date().toISOString().slice(0, 10).replace(/-/g, '');\nconst seq = Math.floor(Math.random() * 900) + 100; // Random 3-digit for demo\nconst lead_id = `lead_${today}_${seq}`;\n\n// Determine next action based on lead status\nlet next_action = {\n  action: 'no_action',\n  deadline: null,\n  notes: null\n};\n\nswitch (extracted.lead_status) {\n  case 'booked':\n    next_action = {\n      action: 'confirm_walkthrough',\n      deadline: 'day before appointment',\n      notes: 'Prepare checklist based on facility type'\n    };\n    break;\n  case 'new_lead':\n  case 'follow_up_needed':\n    next_action = {\n      action: 'callback_to_schedule',\n      deadline: 'within 4 hours',\n      notes: extracted.lead_status === 'follow_up_needed' ? 'May need manual review' : 'Schedule walkthrough'\n    };\n    break;\n  case 'existing_customer':\n    next_action = {\n      action: 'route_to_account_manager',\n      deadline: 'within 1 hour',\n      notes: 'Check for service issues'\n    };\n    break;\n  case 'info_only':\n    next_action = {\n      action: extracted.contact?.email ? 'send_info_email' : 'no_action',\n      deadline: extracted.contact?.email ? 'within 24 hours' : null,\n      notes: null\n    };\n    break;\n}\n\n// Merge all data\nreturn [{\n  json: {\n    // IDs\n    lead_id: lead_id,\n    call_id: callData.call_id,\n    \n    // Status\n    lead_status: extracted.lead_status,\n    consent_status: extracted.consent_status,\n    intent: extracted.intent,\n    \n    // Contact\n    caller_name: extracted.contact?.caller_name || null,\n    phone: callData.caller_phone,\n    phone_confirmed: extracted.contact?.phone_confirmed || false,\n    email: extracted.contact?.email || null,\n    \n    // Business\n    business_name: extracted.business?.business_name || 'Unknown Business',\n    facility_type: extracted.business?.facility_type || 'other',\n    \n    // Location\n    street_address: extracted.location?.street_address || null,\n    city: extracted.location?.city || null,\n    state: extracted.location?.state || 'CA',\n    zip: extracted.location?.zip || null,\n    in_service_area: extracted.location?.in_service_area !== false,\n    \n    // Facility details\n    approx_sqft: extracted.facility_details?.approx_sqft || null,\n    num_restrooms: extracted.facility_details?.num_restrooms || null,\n    has_breakroom: extracted.facility_details?.has_breakroom || null,\n    \n    // Service requirements\n    frequency: extracted.service_requirements?.frequency || null,\n    preferred_time: extracted.service_requirements?.preferred_time || null,\n    timeline: extracted.service_requirements?.timeline || null,\n    timeline_urgency: extracted.service_requirements?.timeline_urgency || null,\n    \n    // Special requirements\n    security_requirements: extracted.special_requirements?.security_requirements || null,\n    compliance_requirements: extracted.special_requirements?.compliance_requirements || [],\n    special_notes: extracted.special_requirements?.other_notes || null,\n    \n    // Pain points\n    current_provider: extracted.pain_points?.current_provider || null,\n    reason_for_switch: extracted.pain_points?.reason_for_switch || null,\n    specific_issues: extracted.pain_points?.specific_issues || [],\n    \n    // Walkthrough\n    walkthrough_requested: extracted.walkthrough?.requested || false,\n    walkthrough_booked: extracted.walkthrough?.booked || false,\n    walkthrough_datetime: extracted.walkthrough?.proposed_datetime || null,\n    decision_maker_attending: extracted.walkthrough?.decision_maker_attending || null,\n    \n    // Summary\n    call_summary: extracted.call_summary || 'No summary available',\n    \n    // Call metadata\n    call_duration_seconds: callData.call_duration_seconds,\n    voice_platform: callData.voice_platform,\n    recording_url: callData.recording_url,\n    transcript_stored: extracted.consent_status !== 'denied',\n    \n    // Next action\n    next_action: next_action.action,\n    next_action_deadline: next_action.deadline,\n    next_action_notes: next_action.notes,\n    \n    // Timestamps\n    created_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "merge-data",
+      "name": "Merge & Format Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 180]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "not-spam",
+              "leftValue": "={{ $json.lead_status }}",
+              "rightValue": "spam",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-spam",
+      "name": "Is Not Spam?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1350, 180]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "lead_id": "={{ $json.lead_id }}",
+            "call_id": "={{ $json.call_id }}",
+            "lead_status": "={{ $json.lead_status }}",
+            "consent_status": "={{ $json.consent_status }}",
+            "intent": "={{ $json.intent }}",
+            "caller_name": "={{ $json.caller_name }}",
+            "phone": "={{ $json.phone }}",
+            "email": "={{ $json.email }}",
+            "business_name": "={{ $json.business_name }}",
+            "facility_type": "={{ $json.facility_type }}",
+            "street_address": "={{ $json.street_address }}",
+            "city": "={{ $json.city }}",
+            "state": "={{ $json.state }}",
+            "zip": "={{ $json.zip }}",
+            "in_service_area": "={{ $json.in_service_area }}",
+            "frequency": "={{ $json.frequency }}",
+            "timeline": "={{ $json.timeline }}",
+            "timeline_urgency": "={{ $json.timeline_urgency }}",
+            "walkthrough_requested": "={{ $json.walkthrough_requested }}",
+            "walkthrough_booked": "={{ $json.walkthrough_booked }}",
+            "walkthrough_datetime": "={{ $json.walkthrough_datetime }}",
+            "call_summary": "={{ $json.call_summary }}",
+            "next_action": "={{ $json.next_action }}",
+            "created_at": "={{ $json.created_at }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "store-postgres",
+      "name": "Store Lead - Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1570, 80],
+      "credentials": {
+        "postgres": {
+          "id": "POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "walkthrough-booked",
+              "leftValue": "={{ $json.walkthrough_booked }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "has-datetime",
+              "leftValue": "={{ $json.walkthrough_datetime }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-booking",
+      "name": "Needs Calendar Booking?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1790, 80]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $env.GOOGLE_CALENDAR_ID || 'primary' }}"
+        },
+        "title": "=Walkthrough – {{ $json.business_name }}",
+        "start": "={{ $json.walkthrough_datetime }}",
+        "end": "={{ DateTime.fromISO($json.walkthrough_datetime).plus({ minutes: 30 }).toISO() }}",
+        "additionalFields": {
+          "location": "={{ $json.street_address ? $json.street_address + ', ' : '' }}{{ $json.city || '' }}, {{ $json.state || 'CA' }} {{ $json.zip || '' }}",
+          "description": "=WALKTHROUGH DETAILS\n========================\n\nContact: {{ $json.caller_name || 'Not provided' }}\nPhone: {{ $json.phone }}\nEmail: {{ $json.email || 'Not provided' }}\n\nBusiness: {{ $json.business_name }}\nFacility Type: {{ $json.facility_type }}\nSize: {{ $json.approx_sqft ? $json.approx_sqft + ' sqft' : 'TBD' }}\n\nFrequency Requested: {{ $json.frequency || 'TBD' }}\nTimeline: {{ $json.timeline || 'TBD' }}\n\n------------------------\nCALL SUMMARY:\n{{ $json.call_summary }}\n\n------------------------\nSPECIAL NOTES:\n{{ $json.security_requirements || 'None' }}\n{{ $json.special_notes || '' }}\n\n------------------------\nLead ID: {{ $json.lead_id }}",
+          "conferenceData": {
+            "createRequest": {
+              "requestId": "={{ $json.lead_id }}"
+            }
+          },
+          "sendUpdates": "all"
+        }
+      },
+      "id": "create-calendar-event",
+      "name": "Create Calendar Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.2,
+      "position": [2010, -20],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "GOOGLE_CALENDAR_CREDENTIAL_ID",
+          "name": "Google Calendar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $env.OWNER_EMAIL || 'owner@acenoir.com' }}",
+        "subject": "=[Ace Noir Inbound] {{ $json.lead_status.toUpperCase() }} – {{ $json.business_name }} – {{ $json.city || 'Unknown City' }}",
+        "message": "=<h2>NEW INBOUND LEAD</h2>\n\n<table style=\"border-collapse: collapse; width: 100%;\">\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Status</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.lead_status }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Lead ID</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.lead_id }}</td></tr>\n</table>\n\n<h3>CONTACT</h3>\n<ul>\n<li><strong>Name:</strong> {{ $json.caller_name || 'Not provided' }}</li>\n<li><strong>Phone:</strong> {{ $json.phone }}</li>\n<li><strong>Email:</strong> {{ $json.email || 'Not provided' }}</li>\n</ul>\n\n<h3>BUSINESS</h3>\n<ul>\n<li><strong>Company:</strong> {{ $json.business_name }}</li>\n<li><strong>Type:</strong> {{ $json.facility_type }}</li>\n<li><strong>Size:</strong> {{ $json.approx_sqft ? $json.approx_sqft + ' sqft' : 'TBD' }}</li>\n<li><strong>Location:</strong> {{ $json.city || 'Unknown' }}, {{ $json.state || 'CA' }}</li>\n</ul>\n\n<h3>SERVICE REQUEST</h3>\n<ul>\n<li><strong>Frequency:</strong> {{ $json.frequency || 'TBD' }}</li>\n<li><strong>Timeline:</strong> {{ $json.timeline || 'TBD' }}</li>\n<li><strong>Urgency:</strong> {{ $json.timeline_urgency || 'Not specified' }}</li>\n</ul>\n\n<h3>CALL SUMMARY</h3>\n<p style=\"background: #f5f5f5; padding: 15px; border-radius: 5px;\">{{ $json.call_summary }}</p>\n\n{{ $json.specific_issues && $json.specific_issues.length > 0 ? '<h3>PAIN POINTS</h3><ul>' + $json.specific_issues.map(i => '<li>' + i + '</li>').join('') + '</ul>' : '' }}\n\n{{ $json.walkthrough_booked ? '<h3 style=\"color: green;\">✅ WALKTHROUGH SCHEDULED</h3><p><strong>Date/Time:</strong> ' + $json.walkthrough_datetime + '</p>' : '' }}\n\n<h3>NEXT ACTION</h3>\n<p style=\"background: #fff3cd; padding: 15px; border-radius: 5px; border-left: 4px solid #ffc107;\">\n<strong>{{ $json.next_action.replace(/_/g, ' ').toUpperCase() }}</strong><br>\n{{ $json.next_action_deadline ? 'Deadline: ' + $json.next_action_deadline : '' }}\n{{ $json.next_action_notes ? '<br>' + $json.next_action_notes : '' }}\n</p>\n\n<hr>\n<p style=\"color: #666; font-size: 12px;\">This notification was automatically generated by the Ace Noir Inbound Receptionist system.</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "send-notification",
+      "name": "Send Email Notification",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [2230, 80],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAIL_CREDENTIAL_ID",
+          "name": "Gmail"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build final response\nconst leadData = $('Merge & Format Data').first().json;\nconst calendarEvent = $('Create Calendar Event').first()?.json;\nconst storeResult = $('Store Lead - Postgres').first()?.json;\n\nconst actions = ['lead_stored'];\nif (calendarEvent?.id) actions.push('calendar_event_created');\nactions.push('email_notification_sent');\n\nreturn [{\n  json: {\n    status: 'success',\n    call_id: leadData.call_id,\n    lead_id: leadData.lead_id,\n    lead_status: leadData.lead_status,\n    actions_taken: actions,\n    walkthrough: {\n      booked: leadData.walkthrough_booked,\n      datetime: leadData.walkthrough_datetime,\n      calendar_event_id: calendarEvent?.id || null\n    },\n    notification_sent: true,\n    next_action: {\n      action: leadData.next_action,\n      deadline: leadData.next_action_deadline\n    },\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "build-response",
+      "name": "Build Success Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2450, 80]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-success",
+      "name": "Respond - Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2670, 80]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log spam and return minimal response\nconst leadData = $input.first().json;\n\nreturn [{\n  json: {\n    status: 'success',\n    call_id: leadData.call_id,\n    lead_id: null,\n    lead_status: 'spam',\n    actions_taken: ['call_logged'],\n    message: 'Spam call detected - no lead created',\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "handle-spam",
+      "name": "Handle Spam",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1570, 280]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-spam",
+      "name": "Respond - Spam",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1790, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Skip calendar, continue to notification\nconst leadData = $input.first().json;\nreturn [{ json: leadData }];"
+      },
+      "id": "skip-calendar",
+      "name": "Skip Calendar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2010, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge calendar event data with lead data\nconst leadData = $('Merge & Format Data').first().json;\nconst calendarEvent = $input.first().json;\n\nreturn [{\n  json: {\n    ...leadData,\n    calendar_event_id: calendarEvent.id,\n    calendar_event_link: calendarEvent.htmlLink\n  }\n}];"
+      },
+      "id": "merge-calendar",
+      "name": "Merge Calendar Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2230, -20]
+    }
+  ],
+  "connections": {
+    "Webhook - Inbound Call": {
+      "main": [
+        [
+          {
+            "node": "Validate Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Payload": {
+      "main": [
+        [
+          {
+            "node": "Needs Full Processing?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Full Processing?": {
+      "main": [
+        [
+          {
+            "node": "AI - Extract Lead Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Acknowledged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Extract Lead Data": {
+      "main": [
+        [
+          {
+            "node": "Merge & Format Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge & Format Data": {
+      "main": [
+        [
+          {
+            "node": "Is Not Spam?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Not Spam?": {
+      "main": [
+        [
+          {
+            "node": "Store Lead - Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Spam",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Lead - Postgres": {
+      "main": [
+        [
+          {
+            "node": "Needs Calendar Booking?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Calendar Booking?": {
+      "main": [
+        [
+          {
+            "node": "Create Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Calendar Event": {
+      "main": [
+        [
+          {
+            "node": "Merge Calendar Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Calendar Data": {
+      "main": [
+        [
+          {
+            "node": "Send Email Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Calendar": {
+      "main": [
+        [
+          {
+            "node": "Send Email Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email Notification": {
+      "main": [
+        [
+          {
+            "node": "Build Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Success Response": {
+      "main": [
+        [
+          {
+            "node": "Respond - Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Spam": {
+      "main": [
+        [
+          {
+            "node": "Respond - Spam",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "Ace Noir",
+      "createdAt": "2026-01-24T00:00:00.000Z",
+      "updatedAt": "2026-01-24T00:00:00.000Z"
+    },
+    {
+      "name": "Inbound",
+      "createdAt": "2026-01-24T00:00:00.000Z",
+      "updatedAt": "2026-01-24T00:00:00.000Z"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1"
+}

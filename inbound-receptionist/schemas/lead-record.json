@@ -1,0 +1,516 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://acenoir.com/schemas/lead-record.json",
+  "title": "LeadRecord",
+  "description": "Structured lead record for Ace Noir Cleaning Services inbound calls",
+  "type": "object",
+  "required": [
+    "call_id",
+    "lead_status",
+    "consent_status",
+    "intent",
+    "created_at"
+  ],
+  "properties": {
+    "lead_id": {
+      "type": "string",
+      "description": "Unique identifier for the lead (auto-generated)",
+      "pattern": "^lead_[0-9]{8}_[0-9]{3,}$",
+      "examples": ["lead_20260124_001"]
+    },
+    "call_id": {
+      "type": "string",
+      "description": "Unique call identifier from voice platform (for idempotency)",
+      "minLength": 8,
+      "maxLength": 64
+    },
+    "lead_status": {
+      "type": "string",
+      "enum": ["new_lead", "booked", "info_only", "existing_customer", "spam", "follow_up_needed"],
+      "description": "Current status of the lead"
+    },
+    "consent_status": {
+      "type": "string",
+      "enum": ["granted", "denied", "not_asked"],
+      "description": "Recording/transcription consent status (California compliance)"
+    },
+    "intent": {
+      "type": "string",
+      "enum": ["walkthrough_request", "quote_request", "info_request", "existing_customer", "spam", "unknown"],
+      "description": "Detected caller intent"
+    },
+
+    "contact": {
+      "type": "object",
+      "description": "Contact information",
+      "properties": {
+        "caller_name": {
+          "type": "string",
+          "description": "Full name of the caller",
+          "maxLength": 100
+        },
+        "phone": {
+          "type": "string",
+          "description": "Confirmed phone number (E.164 format preferred)",
+          "pattern": "^\\+?[0-9\\-\\s\\(\\)]{7,20}$"
+        },
+        "phone_source": {
+          "type": "string",
+          "enum": ["caller_id", "confirmed", "provided"],
+          "description": "How phone number was obtained"
+        },
+        "email": {
+          "type": ["string", "null"],
+          "format": "email",
+          "description": "Email address if provided"
+        },
+        "preferred_contact_method": {
+          "type": "string",
+          "enum": ["phone", "email", "either"],
+          "default": "phone"
+        }
+      },
+      "required": ["caller_name", "phone"]
+    },
+
+    "business": {
+      "type": "object",
+      "description": "Business/facility information",
+      "properties": {
+        "business_name": {
+          "type": "string",
+          "description": "Company or organization name",
+          "maxLength": 200
+        },
+        "facility_type": {
+          "type": "string",
+          "enum": ["office", "medical", "dental", "school", "warehouse", "retail", "restaurant", "multi_tenant", "industrial", "gym_fitness", "church", "government", "other"],
+          "description": "Type of facility"
+        },
+        "facility_type_other": {
+          "type": ["string", "null"],
+          "description": "Description if facility_type is 'other'"
+        }
+      },
+      "required": ["business_name", "facility_type"]
+    },
+
+    "location": {
+      "type": "object",
+      "description": "Service address information",
+      "properties": {
+        "street_address": {
+          "type": "string",
+          "description": "Street address including suite/unit"
+        },
+        "city": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "default": "CA"
+        },
+        "zip": {
+          "type": "string",
+          "pattern": "^[0-9]{5}(-[0-9]{4})?$"
+        },
+        "full_address": {
+          "type": "string",
+          "description": "Complete formatted address"
+        },
+        "in_service_area": {
+          "type": "boolean",
+          "description": "Whether location is in primary service area (LA County)"
+        },
+        "distance_from_base_miles": {
+          "type": ["number", "null"],
+          "description": "Estimated distance from Pasadena base"
+        }
+      },
+      "required": ["city"]
+    },
+
+    "facility_details": {
+      "type": "object",
+      "description": "Facility specifications",
+      "properties": {
+        "approx_sqft": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Approximate square footage"
+        },
+        "sqft_source": {
+          "type": "string",
+          "enum": ["exact", "estimate", "proxy"],
+          "description": "How sqft was determined"
+        },
+        "size_proxy": {
+          "type": ["string", "null"],
+          "description": "Size description if exact sqft unknown (e.g., '3 floors, 20 offices')"
+        },
+        "num_restrooms": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "has_breakroom": {
+          "type": ["boolean", "null"]
+        },
+        "has_kitchen": {
+          "type": ["boolean", "null"]
+        },
+        "floor_types": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["carpet", "vct", "tile", "hardwood", "concrete", "laminate", "other"]
+          },
+          "description": "Types of flooring present"
+        },
+        "high_traffic_areas": {
+          "type": ["string", "null"],
+          "description": "Description of high-traffic areas"
+        },
+        "trash_volume": {
+          "type": "string",
+          "enum": ["light", "moderate", "heavy"],
+          "description": "Estimated trash/waste volume"
+        }
+      }
+    },
+
+    "service_requirements": {
+      "type": "object",
+      "description": "Cleaning service requirements",
+      "properties": {
+        "frequency": {
+          "type": "string",
+          "description": "Desired cleaning frequency (e.g., '3x/week', 'nightly', 'weekly')"
+        },
+        "frequency_parsed": {
+          "type": "object",
+          "properties": {
+            "times_per_week": {
+              "type": ["number", "null"]
+            },
+            "specific_days": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+              }
+            }
+          }
+        },
+        "preferred_time": {
+          "type": "string",
+          "description": "Preferred cleaning time (e.g., 'after 6 PM', 'overnight', 'weekends')"
+        },
+        "timeline": {
+          "type": "string",
+          "description": "When they want to start service"
+        },
+        "timeline_urgency": {
+          "type": "string",
+          "enum": ["asap", "within_2_weeks", "within_month", "flexible", "shopping"],
+          "description": "Urgency level for starting"
+        },
+        "add_ons_requested": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["window_cleaning", "floor_care", "carpet_cleaning", "pressure_washing", "disinfecting", "consumables", "recycling", "other"]
+          }
+        },
+        "add_ons_other": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["frequency", "timeline"]
+    },
+
+    "special_requirements": {
+      "type": "object",
+      "description": "Special access and compliance requirements",
+      "properties": {
+        "security_requirements": {
+          "type": ["string", "null"],
+          "description": "Security/NDA requirements"
+        },
+        "access_instructions": {
+          "type": ["string", "null"],
+          "description": "Building access details (keys, codes, after-hours)"
+        },
+        "compliance_requirements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["hipaa", "ferpa", "osha", "food_safety", "biohazard", "other"]
+          }
+        },
+        "supplies_provided": {
+          "type": "string",
+          "enum": ["client_provides", "ace_noir_provides", "discuss"],
+          "description": "Who provides cleaning supplies"
+        },
+        "hazardous_materials": {
+          "type": ["string", "null"],
+          "description": "Any hazardous waste handling needed"
+        },
+        "other_notes": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+
+    "pain_points": {
+      "type": "object",
+      "description": "Current issues and reasons for seeking service",
+      "properties": {
+        "current_provider": {
+          "type": ["string", "null"],
+          "description": "Name of current cleaning provider if any"
+        },
+        "reason_for_switch": {
+          "type": ["string", "null"],
+          "description": "Why they're switching providers"
+        },
+        "specific_issues": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of specific complaints/issues"
+        },
+        "priorities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "What's most important to them"
+        }
+      }
+    },
+
+    "budget": {
+      "type": "object",
+      "description": "Budget information (only if voluntarily provided)",
+      "properties": {
+        "range_provided": {
+          "type": "boolean",
+          "default": false
+        },
+        "budget_range": {
+          "type": ["string", "null"],
+          "description": "Budget range if provided (e.g., '$500-800/month')"
+        },
+        "current_spend": {
+          "type": ["string", "null"],
+          "description": "What they currently spend if mentioned"
+        }
+      }
+    },
+
+    "walkthrough": {
+      "type": "object",
+      "description": "Walkthrough scheduling information",
+      "properties": {
+        "requested": {
+          "type": "boolean",
+          "description": "Whether walkthrough was requested/agreed to"
+        },
+        "booked": {
+          "type": "boolean",
+          "description": "Whether walkthrough was actually scheduled"
+        },
+        "datetime": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Scheduled walkthrough date/time (ISO 8601)"
+        },
+        "duration_minutes": {
+          "type": "integer",
+          "default": 30
+        },
+        "calendar_event_id": {
+          "type": ["string", "null"],
+          "description": "Google Calendar event ID"
+        },
+        "decision_maker_attending": {
+          "type": ["boolean", "null"],
+          "description": "Whether decision-maker will be present"
+        },
+        "availability_notes": {
+          "type": ["string", "null"],
+          "description": "Notes on caller's availability"
+        }
+      }
+    },
+
+    "call_metadata": {
+      "type": "object",
+      "description": "Call session metadata",
+      "properties": {
+        "call_duration_seconds": {
+          "type": "integer"
+        },
+        "caller_phone_raw": {
+          "type": "string",
+          "description": "Original caller ID phone number"
+        },
+        "transcript_stored": {
+          "type": "boolean",
+          "description": "Whether transcript was stored (false if consent denied)"
+        },
+        "transcript_reference": {
+          "type": ["string", "null"],
+          "description": "Reference to stored transcript or 'consent_denied'"
+        },
+        "recording_url": {
+          "type": ["string", "null"],
+          "format": "uri"
+        },
+        "voice_platform": {
+          "type": "string"
+        },
+        "ai_confidence_score": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+
+    "call_summary": {
+      "type": "string",
+      "description": "AI-generated summary of the call",
+      "maxLength": 2000
+    },
+
+    "next_action": {
+      "type": "object",
+      "description": "Recommended next action",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": ["confirm_walkthrough", "callback_to_schedule", "send_info_email", "route_to_account_manager", "no_action", "manual_review"]
+        },
+        "deadline": {
+          "type": ["string", "null"],
+          "description": "When action should be completed (e.g., 'within 4 hours')"
+        },
+        "notes": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+
+    "notifications_sent": {
+      "type": "array",
+      "description": "Record of notifications sent",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["email", "sms", "slack"]
+          },
+          "recipient": {
+            "type": "string"
+          },
+          "sent_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["sent", "failed", "pending"]
+          }
+        }
+      }
+    },
+
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "processing_status": {
+      "type": "string",
+      "enum": ["pending", "processing", "completed", "failed"],
+      "description": "Internal processing status"
+    }
+  },
+
+  "examples": [
+    {
+      "lead_id": "lead_20260124_001",
+      "call_id": "call_abc123xyz789",
+      "lead_status": "booked",
+      "consent_status": "granted",
+      "intent": "walkthrough_request",
+      "contact": {
+        "caller_name": "Sarah Martinez",
+        "phone": "+16265551234",
+        "phone_source": "confirmed",
+        "email": "sarah@martinezlaw.com",
+        "preferred_contact_method": "email"
+      },
+      "business": {
+        "business_name": "Martinez & Associates Law Firm",
+        "facility_type": "office"
+      },
+      "location": {
+        "street_address": "450 North Brand Boulevard, Suite 300",
+        "city": "Glendale",
+        "state": "CA",
+        "zip": "91203",
+        "full_address": "450 North Brand Boulevard, Suite 300, Glendale, CA 91203",
+        "in_service_area": true
+      },
+      "facility_details": {
+        "approx_sqft": 3500,
+        "sqft_source": "estimate",
+        "num_restrooms": null,
+        "has_breakroom": true
+      },
+      "service_requirements": {
+        "frequency": "3 nights per week",
+        "frequency_parsed": {
+          "times_per_week": 3,
+          "specific_days": ["monday", "wednesday", "friday"]
+        },
+        "preferred_time": "after 6 PM",
+        "timeline": "as soon as possible",
+        "timeline_urgency": "asap"
+      },
+      "special_requirements": {
+        "security_requirements": "NDA required - confidential legal documents",
+        "compliance_requirements": []
+      },
+      "pain_points": {
+        "current_provider": "unknown",
+        "reason_for_switch": "poor service quality",
+        "specific_issues": ["restrooms missed", "breakroom not cleaned", "trash not emptied"],
+        "priorities": ["consistency", "attention to restrooms"]
+      },
+      "walkthrough": {
+        "requested": true,
+        "booked": true,
+        "datetime": "2026-01-27T17:30:00-08:00",
+        "duration_minutes": 30,
+        "calendar_event_id": "evt_gcal_abc123",
+        "decision_maker_attending": true
+      },
+      "call_summary": "Sarah Martinez from Martinez & Associates Law Firm in Glendale is seeking commercial cleaning for their 3,500 sqft law office. Currently dissatisfied with their provider due to inconsistent restroom and breakroom cleaning. Wants 3x/week service after 6 PM, starting ASAP. Requires NDA for confidential documents. Walkthrough booked for Thursday 5:30 PM.",
+      "next_action": {
+        "action": "confirm_walkthrough",
+        "deadline": "day before appointment",
+        "notes": "Bring NDA for signature. Prepare law office cleaning checklist."
+      },
+      "created_at": "2026-01-24T14:32:46.456Z"
+    }
+  ]
+}

@@ -1,0 +1,322 @@
+{
+  "_documentation": {
+    "title": "Ace Noir Inbound Receptionist - Webhook Payload Examples",
+    "description": "Example inbound payloads and expected responses for the webhook endpoint",
+    "endpoint": "POST /webhook/call-event",
+    "authentication": "X-Webhook-Signature header with HMAC-SHA256"
+  },
+
+  "inbound_payloads": {
+    "single_shot_call_end": {
+      "_description": "Full transcript delivered at end of call (single-shot mode)",
+      "call_id": "call_abc123xyz789",
+      "event_type": "call_end",
+      "timestamp": "2026-01-24T14:32:45.123Z",
+      "caller_phone": "+16265551234",
+      "called_phone": "+16265559000",
+      "call_direction": "inbound",
+      "call_status": "completed",
+      "call_duration_seconds": 187,
+      "transcript": {
+        "mode": "single_shot",
+        "full_text": "Agent: Thank you for calling Ace Noir Cleaning Services. This call may be recorded for quality and scheduling purposes. Is that okay with you?\n\nCaller: Yes, that's fine.\n\nAgent: Great, thank you. How can I help you today?\n\nCaller: Hi, I'm looking to get a quote for cleaning our office building. We're in Glendale.\n\nAgent: I'd be happy to help you with that. To give you an accurate quote, we'll need to schedule a walkthrough of your facility. Can I get some information from you?\n\nCaller: Sure.\n\nAgent: What's your name?\n\nCaller: Sarah Martinez.\n\nAgent: Thank you, Sarah. And what's the name of your business?\n\nCaller: Martinez & Associates Law Firm.\n\nAgent: Great. What's the address of the building?\n\nCaller: 450 North Brand Boulevard, Suite 300, Glendale, 91203.\n\nAgent: Perfect. What type of facility is it?\n\nCaller: It's a professional office, law firm.\n\nAgent: About how large is the space?\n\nCaller: Around 3,500 square feet.\n\nAgent: And how often would you like cleaning services?\n\nCaller: We're thinking three nights a week, Monday, Wednesday, Friday after 6 PM.\n\nAgent: That sounds good. When are you looking to start service?\n\nCaller: As soon as possible, really. We had some issues with our current cleaner.\n\nAgent: I understand. What were the main issues you experienced?\n\nCaller: They kept missing the restrooms and the breakroom was never properly cleaned. The trash wasn't taken out consistently either.\n\nAgent: I'm sorry to hear that. We take those details very seriously. Any special requirements we should know about?\n\nCaller: We do have confidential documents so security is important. The cleaners would need to sign an NDA.\n\nAgent: Absolutely, we can accommodate that. What's the best email to reach you?\n\nCaller: sarah@martinezlaw.com\n\nAgent: Perfect. Would you like to schedule a walkthrough now? I have availability this Thursday at 5:30 PM or Friday at 10 AM.\n\nCaller: Thursday at 5:30 works.\n\nAgent: Excellent. I've booked a walkthrough for Thursday at 5:30 PM at your location. You'll receive a confirmation email. Is there anything else I can help you with?\n\nCaller: No, that's everything. Thank you.\n\nAgent: Thank you for choosing Ace Noir. We look forward to meeting you Thursday!",
+        "utterances": [
+          {"speaker": "agent", "text": "Thank you for calling Ace Noir Cleaning Services. This call may be recorded for quality and scheduling purposes. Is that okay with you?", "timestamp": 0.5, "confidence": 0.98, "is_final": true},
+          {"speaker": "caller", "text": "Yes, that's fine.", "timestamp": 5.2, "confidence": 0.97, "is_final": true},
+          {"speaker": "agent", "text": "Great, thank you. How can I help you today?", "timestamp": 7.1, "confidence": 0.99, "is_final": true},
+          {"speaker": "caller", "text": "Hi, I'm looking to get a quote for cleaning our office building. We're in Glendale.", "timestamp": 9.8, "confidence": 0.95, "is_final": true}
+        ]
+      },
+      "voice_platform": {
+        "provider": "vapi",
+        "version": "2.1",
+        "session_id": "sess_vapi_abc123"
+      },
+      "metadata": {
+        "recording_url": "https://storage.example.com/recordings/call_abc123xyz789.mp3",
+        "ai_confidence_score": 0.94
+      }
+    },
+
+    "streamed_transcript_update": {
+      "_description": "Incremental transcript update during call (streamed mode)",
+      "call_id": "call_def456uvw012",
+      "event_type": "transcript_update",
+      "timestamp": "2026-01-24T15:10:23.456Z",
+      "caller_phone": "+13105557890",
+      "called_phone": "+16265559000",
+      "call_direction": "inbound",
+      "call_status": "in_progress",
+      "transcript": {
+        "mode": "streamed",
+        "partial_text": "we need cleaning for a warehouse about",
+        "sequence_number": 7,
+        "utterances": [
+          {"speaker": "agent", "text": "Thank you for calling Ace Noir Cleaning Services. This call may be recorded for quality and scheduling purposes. Is that okay?", "timestamp": 0.5, "confidence": 0.98, "is_final": true},
+          {"speaker": "caller", "text": "Yeah sure.", "timestamp": 4.8, "confidence": 0.92, "is_final": true},
+          {"speaker": "agent", "text": "How can I help you today?", "timestamp": 6.2, "confidence": 0.99, "is_final": true},
+          {"speaker": "caller", "text": "Hi I'm calling because we need cleaning for a warehouse about", "timestamp": 8.5, "confidence": 0.88, "is_final": false}
+        ]
+      },
+      "voice_platform": {
+        "provider": "retell",
+        "version": "1.5",
+        "session_id": "sess_retell_def456"
+      }
+    },
+
+    "streamed_call_end": {
+      "_description": "Final event for streamed call with complete transcript",
+      "call_id": "call_def456uvw012",
+      "event_type": "call_end",
+      "timestamp": "2026-01-24T15:14:45.789Z",
+      "caller_phone": "+13105557890",
+      "called_phone": "+16265559000",
+      "call_direction": "inbound",
+      "call_status": "completed",
+      "call_duration_seconds": 262,
+      "transcript": {
+        "mode": "streamed",
+        "full_text": "Agent: Thank you for calling Ace Noir Cleaning Services. This call may be recorded for quality and scheduling purposes. Is that okay?\n\nCaller: Yeah sure.\n\nAgent: How can I help you today?\n\nCaller: Hi I'm calling because we need cleaning for a warehouse about 15,000 square feet in Commerce.\n\nAgent: I can definitely help with that. Warehouse cleaning is one of our specialties. Let me get some details. What's your name?\n\nCaller: Mike Chen.\n\nAgent: And your company name?\n\nCaller: Pacific Distribution LLC.\n\nAgent: What's the warehouse address?\n\nCaller: 5800 Sheila Street, Commerce, CA 90040.\n\nAgent: What's the main use of the warehouse?\n\nCaller: It's a distribution center, mostly boxes and pallets. We have some office space in the front too.\n\nAgent: How often do you need cleaning?\n\nCaller: Probably twice a week.\n\nAgent: Any specific issues you're dealing with?\n\nCaller: Lots of dust and cardboard debris. And the break room gets pretty messy.\n\nAgent: Understood. When would you like to start?\n\nCaller: We'd like someone in the next couple weeks.\n\nAgent: Perfect. I'd recommend scheduling a walkthrough so we can see the space and give you an accurate quote. Are you available later this week?\n\nCaller: I'm pretty busy but maybe you could just send me pricing?\n\nAgent: I understand you're busy. For warehouse facilities, pricing really depends on the specific layout and needs, so a walkthrough helps us give you the most accurate and competitive quote. It only takes about 30 minutes. Would next week work better?\n\nCaller: Alright, how about Tuesday afternoon?\n\nAgent: Tuesday afternoon works. How about 2 PM?\n\nCaller: That's fine.\n\nAgent: Great. What's the best number to reach you and an email for confirmation?\n\nCaller: This number is fine, and email is mike@pacificdist.com.\n\nAgent: Perfect. I've got you scheduled for Tuesday at 2 PM. You'll get a confirmation email shortly. Anything else I can help with?\n\nCaller: Nope, that's it.\n\nAgent: Thank you for calling Ace Noir. See you Tuesday!",
+        "sequence_number": 24,
+        "utterances": []
+      },
+      "voice_platform": {
+        "provider": "retell",
+        "version": "1.5",
+        "session_id": "sess_retell_def456"
+      },
+      "metadata": {
+        "recording_url": "https://storage.example.com/recordings/call_def456uvw012.mp3"
+      }
+    },
+
+    "call_start": {
+      "_description": "Initial event when call begins (for real-time processing setup)",
+      "call_id": "call_ghi789rst345",
+      "event_type": "call_start",
+      "timestamp": "2026-01-24T16:00:00.000Z",
+      "caller_phone": "+18185554321",
+      "called_phone": "+16265559000",
+      "call_direction": "inbound",
+      "call_status": "ringing",
+      "transcript": null,
+      "voice_platform": {
+        "provider": "twilio",
+        "version": "2024-03",
+        "session_id": "CA_ghi789rst345"
+      }
+    },
+
+    "consent_denied_call": {
+      "_description": "Caller declines recording consent - minimal data captured",
+      "call_id": "call_consent_denied_001",
+      "event_type": "call_end",
+      "timestamp": "2026-01-24T17:22:33.000Z",
+      "caller_phone": "+16265558888",
+      "called_phone": "+16265559000",
+      "call_direction": "inbound",
+      "call_status": "completed",
+      "call_duration_seconds": 95,
+      "transcript": {
+        "mode": "single_shot",
+        "full_text": "[TRANSCRIPT REDACTED - CONSENT NOT GIVEN]",
+        "utterances": []
+      },
+      "voice_platform": {
+        "provider": "vapi",
+        "version": "2.1",
+        "session_id": "sess_vapi_consent001"
+      },
+      "metadata": {
+        "consent_status": "denied",
+        "manual_notes": "Caller requested walkthrough for dental office in Arcadia. Name: Dr. James Wong. Business: Wong Family Dentistry. Phone confirmed. No email given. Wants callback to schedule."
+      }
+    },
+
+    "spam_call": {
+      "_description": "Identified as spam/solicitation call",
+      "call_id": "call_spam_xyz999",
+      "event_type": "call_end",
+      "timestamp": "2026-01-24T11:05:15.000Z",
+      "caller_phone": "+18005551111",
+      "called_phone": "+16265559000",
+      "call_direction": "inbound",
+      "call_status": "completed",
+      "call_duration_seconds": 23,
+      "transcript": {
+        "mode": "single_shot",
+        "full_text": "Agent: Thank you for calling Ace Noir Cleaning Services. This call may be recorded for quality and scheduling purposes. Is that okay?\n\nCaller: Hi there, I'm calling from Business Growth Solutions and I wanted to talk to you about our SEO services that can help your cleaning business get more customers...\n\nAgent: I appreciate the call, but we're not interested in marketing services at this time. Is there anything else I can help you with regarding cleaning services?\n\nCaller: Are you sure? We have special pricing this month...\n\nAgent: Thank you, but no. Have a good day.",
+        "utterances": []
+      },
+      "voice_platform": {
+        "provider": "vapi",
+        "version": "2.1",
+        "session_id": "sess_vapi_spam999"
+      }
+    }
+  },
+
+  "outbound_responses": {
+    "success_ack": {
+      "_description": "Successful acknowledgment response",
+      "status": "success",
+      "call_id": "call_abc123xyz789",
+      "message": "Event processed successfully",
+      "data": {
+        "lead_id": "lead_20260124_001",
+        "lead_status": "booked",
+        "actions_taken": [
+          "lead_stored",
+          "calendar_event_created",
+          "email_notification_sent"
+        ],
+        "calendar_event_id": "evt_gcal_abc123",
+        "walkthrough_datetime": "2026-01-27T17:30:00-08:00"
+      },
+      "timestamp": "2026-01-24T14:32:46.456Z"
+    },
+
+    "success_new_lead": {
+      "_description": "Lead stored but no booking (caller didn't want to book now)",
+      "status": "success",
+      "call_id": "call_newlead_002",
+      "message": "Event processed successfully",
+      "data": {
+        "lead_id": "lead_20260124_002",
+        "lead_status": "new_lead",
+        "actions_taken": [
+          "lead_stored",
+          "email_notification_sent"
+        ],
+        "next_action": "Call back within 4 hours to schedule walkthrough"
+      },
+      "timestamp": "2026-01-24T15:45:22.789Z"
+    },
+
+    "success_info_only": {
+      "_description": "Information request only, not a lead",
+      "status": "success",
+      "call_id": "call_info_003",
+      "message": "Event processed successfully",
+      "data": {
+        "lead_id": null,
+        "lead_status": "info_only",
+        "actions_taken": [
+          "call_logged"
+        ],
+        "summary": "Caller asked about service area coverage. Provided info about LA County coverage."
+      },
+      "timestamp": "2026-01-24T16:12:05.123Z"
+    },
+
+    "success_consent_denied": {
+      "_description": "Processed with consent denied - minimal storage",
+      "status": "success",
+      "call_id": "call_consent_denied_001",
+      "message": "Event processed with limited data (consent not given)",
+      "data": {
+        "lead_id": "lead_20260124_003",
+        "lead_status": "new_lead",
+        "consent_status": "denied",
+        "actions_taken": [
+          "lead_stored_minimal",
+          "email_notification_sent"
+        ],
+        "note": "Transcript not stored per caller request"
+      },
+      "timestamp": "2026-01-24T17:22:34.567Z"
+    },
+
+    "success_spam": {
+      "_description": "Spam call identified and logged",
+      "status": "success",
+      "call_id": "call_spam_xyz999",
+      "message": "Event processed - spam identified",
+      "data": {
+        "lead_id": null,
+        "lead_status": "spam",
+        "actions_taken": [
+          "call_logged"
+        ]
+      },
+      "timestamp": "2026-01-24T11:05:16.234Z"
+    },
+
+    "success_idempotent": {
+      "_description": "Duplicate call_id detected, returning cached result",
+      "status": "success",
+      "call_id": "call_abc123xyz789",
+      "message": "Event already processed (idempotent)",
+      "data": {
+        "lead_id": "lead_20260124_001",
+        "lead_status": "booked",
+        "cached": true,
+        "original_timestamp": "2026-01-24T14:32:46.456Z"
+      },
+      "timestamp": "2026-01-24T14:35:00.000Z"
+    },
+
+    "error_validation": {
+      "_description": "Validation error response",
+      "status": "error",
+      "call_id": null,
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "Invalid payload: missing required field 'call_id'",
+        "details": [
+          {"field": "call_id", "error": "Required field missing"}
+        ]
+      },
+      "timestamp": "2026-01-24T18:00:00.000Z"
+    },
+
+    "error_signature": {
+      "_description": "Invalid webhook signature",
+      "status": "error",
+      "call_id": null,
+      "error": {
+        "code": "INVALID_SIGNATURE",
+        "message": "Webhook signature verification failed"
+      },
+      "timestamp": "2026-01-24T18:05:00.000Z"
+    },
+
+    "error_processing": {
+      "_description": "Internal processing error with retry suggestion",
+      "status": "error",
+      "call_id": "call_error_001",
+      "error": {
+        "code": "PROCESSING_ERROR",
+        "message": "Failed to store lead data",
+        "retry_after_seconds": 5,
+        "retriable": true
+      },
+      "timestamp": "2026-01-24T18:10:00.000Z"
+    },
+
+    "error_rate_limit": {
+      "_description": "Rate limit exceeded",
+      "status": "error",
+      "call_id": "call_ratelimit_001",
+      "error": {
+        "code": "RATE_LIMIT_EXCEEDED",
+        "message": "Too many requests. Please retry after the specified time.",
+        "retry_after_seconds": 60,
+        "retriable": true
+      },
+      "timestamp": "2026-01-24T18:15:00.000Z"
+    }
+  },
+
+  "http_status_codes": {
+    "200": "Success - event processed",
+    "202": "Accepted - event queued for async processing",
+    "400": "Bad Request - validation error",
+    "401": "Unauthorized - invalid or missing signature",
+    "409": "Conflict - idempotency conflict (use cached response)",
+    "429": "Too Many Requests - rate limited",
+    "500": "Internal Server Error - processing failed",
+    "503": "Service Unavailable - temporary outage"
+  }
+}
