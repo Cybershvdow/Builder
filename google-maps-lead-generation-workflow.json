@@ -1,0 +1,740 @@
+{
+  "name": "Google Maps Lead Generation with Apify",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Google Maps Lead Generator",
+        "formDescription": "Enter your search criteria to scrape leads from Google Maps",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Search Query",
+              "placeholder": "e.g., plumbers, restaurants, dentists",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Location",
+              "placeholder": "e.g., New York, Los Angeles, Chicago",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Zipcode",
+              "placeholder": "e.g., 10001 (optional)",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Radius (miles)",
+              "fieldType": "number",
+              "placeholder": "e.g., 10",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Max Results",
+              "fieldType": "number",
+              "placeholder": "e.g., 100",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "respondWithOptions": {
+            "values": {
+              "respondWith": "text",
+              "formSubmittedText": "Lead scraping started! You will receive the results soon."
+            }
+          }
+        }
+      },
+      "id": "form-trigger",
+      "name": "Lead Search Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "webhookId": "google-maps-lead-gen"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "search-query",
+              "name": "searchQuery",
+              "value": "={{ $json['Search Query'] }}",
+              "type": "string"
+            },
+            {
+              "id": "location",
+              "name": "location",
+              "value": "={{ $json['Location'] }}{{ $json['Zipcode'] ? ', ' + $json['Zipcode'] : '' }}",
+              "type": "string"
+            },
+            {
+              "id": "radius",
+              "name": "radius",
+              "value": "={{ $json['Radius (miles)'] || 10 }}",
+              "type": "number"
+            },
+            {
+              "id": "max-results",
+              "name": "maxResults",
+              "value": "={{ $json['Max Results'] || 50 }}",
+              "type": "number"
+            },
+            {
+              "id": "full-query",
+              "name": "fullQuery",
+              "value": "={{ $json['Search Query'] }} in {{ $json['Location'] }}{{ $json['Zipcode'] ? ' ' + $json['Zipcode'] : '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-fields",
+      "name": "Prepare Search Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/compass~crawler-google-places/runs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"startUrls\": [],\n  \"searchStringsArray\": [\"{{ $json.fullQuery }}\"],\n  \"locationQuery\": \"{{ $json.location }}\",\n  \"maxCrawledPlacesPerSearch\": {{ $json.maxResults }},\n  \"language\": \"en\",\n  \"exportPlaceUrls\": false,\n  \"includeWebResults\": false,\n  \"maxImages\": 0,\n  \"maxReviews\": 0,\n  \"scrapeDirectories\": false,\n  \"scrapeResponseFromOwnerText\": false,\n  \"searchMatching\": \"all\",\n  \"placeMinimumStars\": 0,\n  \"skipClosedPlaces\": false,\n  \"allPlacesNoSearch\": false,\n  \"onlyDataFromSearchPage\": false,\n  \"deeperCityScrape\": false\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "start-apify-scraper",
+      "name": "Start Apify Scraper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 0],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "APIFY_CREDENTIALS_ID",
+          "name": "Apify API Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "unit": "seconds",
+        "value": 30
+      },
+      "id": "wait-for-scrape",
+      "name": "Wait for Scrape",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.apify.com/v2/acts/compass~crawler-google-places/runs/{{ $('Start Apify Scraper').item.json.data.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "check-run-status",
+      "name": "Check Run Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 0],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "APIFY_CREDENTIALS_ID",
+          "name": "Apify API Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "status-check",
+              "leftValue": "={{ $json.data.status }}",
+              "rightValue": "SUCCEEDED",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-completed",
+      "name": "Scrape Completed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1100, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.apify.com/v2/datasets/{{ $('Check Run Status').item.json.data.defaultDatasetId }}/items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "get-scraped-data",
+      "name": "Get Scraped Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, -100],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "APIFY_CREDENTIALS_ID",
+          "name": "Apify API Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "=",
+        "options": {}
+      },
+      "id": "split-items",
+      "name": "Split Into Items",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [1540, -100]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "business-name",
+              "name": "businessName",
+              "value": "={{ $json.title }}",
+              "type": "string"
+            },
+            {
+              "id": "address",
+              "name": "address",
+              "value": "={{ $json.address }}",
+              "type": "string"
+            },
+            {
+              "id": "phone",
+              "name": "phone",
+              "value": "={{ $json.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "website",
+              "name": "website",
+              "value": "={{ $json.website }}",
+              "type": "string"
+            },
+            {
+              "id": "rating",
+              "name": "rating",
+              "value": "={{ $json.totalScore }}",
+              "type": "number"
+            },
+            {
+              "id": "reviews-count",
+              "name": "reviewsCount",
+              "value": "={{ $json.reviewsCount }}",
+              "type": "number"
+            },
+            {
+              "id": "category",
+              "name": "category",
+              "value": "={{ $json.categoryName }}",
+              "type": "string"
+            },
+            {
+              "id": "place-id",
+              "name": "placeId",
+              "value": "={{ $json.placeId }}",
+              "type": "string"
+            },
+            {
+              "id": "google-url",
+              "name": "googleUrl",
+              "value": "={{ $json.url }}",
+              "type": "string"
+            },
+            {
+              "id": "city",
+              "name": "city",
+              "value": "={{ $json.city }}",
+              "type": "string"
+            },
+            {
+              "id": "state",
+              "name": "state",
+              "value": "={{ $json.state }}",
+              "type": "string"
+            },
+            {
+              "id": "zipcode",
+              "name": "zipcode",
+              "value": "={{ $json.postalCode }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-lead-data",
+      "name": "Format Lead Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1760, -100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "has-website",
+              "leftValue": "={{ $json.website }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-has-website",
+      "name": "Has Website?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [1980, -100]
+    },
+    {
+      "parameters": {
+        "operation": "removeDuplicates",
+        "compare": "selectedFields",
+        "fieldsToCompare": {
+          "fields": [
+            {
+              "fieldName": "placeId"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "remove-duplicates",
+      "name": "Remove Duplicates",
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 1,
+      "position": [2200, -100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract root domain from website URL\nconst items = $input.all();\n\nfor (const item of items) {\n  if (item.json.website) {\n    try {\n      const url = new URL(item.json.website);\n      item.json.domain = url.hostname.replace('www.', '');\n    } catch (e) {\n      item.json.domain = item.json.website;\n    }\n  }\n}\n\nreturn items;"
+      },
+      "id": "extract-domain",
+      "name": "Extract Domain",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2420, -100]
+    },
+    {
+      "parameters": {},
+      "id": "loop-leads",
+      "name": "Loop Over Leads",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [2640, -100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anymailfinder.com/v5.0/search/company.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"domain\": \"{{ $json.domain }}\",\n  \"company_name\": \"{{ $json.businessName }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "anymailfinder",
+      "name": "AnyMail Finder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2860, -100],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ANYMAILFINDER_CREDENTIALS_ID",
+          "name": "AnyMailFinder API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "unit": "seconds",
+        "value": 1
+      },
+      "id": "rate-limit-wait",
+      "name": "Rate Limit Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [3080, -100]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "email",
+              "name": "email",
+              "value": "={{ $('AnyMail Finder').item.json.email || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "email-type",
+              "name": "emailType",
+              "value": "={{ $('AnyMail Finder').item.json.email_type || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "include": "selected",
+        "options": {}
+      },
+      "id": "merge-email-data",
+      "name": "Merge Email Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [3300, -100]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "aggregate-results",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [3520, -100]
+    },
+    {
+      "parameters": {
+        "mode": "jsonToBinary",
+        "options": {
+          "fileName": "google_maps_leads.json"
+        }
+      },
+      "id": "convert-to-file",
+      "name": "Convert to File",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [3740, -100]
+    },
+    {
+      "parameters": {
+        "unit": "seconds",
+        "value": 30
+      },
+      "id": "wait-loop",
+      "name": "Wait and Retry",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1320, 100]
+    },
+    {
+      "parameters": {},
+      "id": "no-op",
+      "name": "Output Leads",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [3960, -100]
+    }
+  ],
+  "connections": {
+    "Lead Search Form": {
+      "main": [
+        [
+          {
+            "node": "Prepare Search Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Search Parameters": {
+      "main": [
+        [
+          {
+            "node": "Start Apify Scraper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start Apify Scraper": {
+      "main": [
+        [
+          {
+            "node": "Wait for Scrape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Scrape": {
+      "main": [
+        [
+          {
+            "node": "Check Run Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Run Status": {
+      "main": [
+        [
+          {
+            "node": "Scrape Completed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Completed?": {
+      "main": [
+        [
+          {
+            "node": "Get Scraped Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait and Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Scraped Data": {
+      "main": [
+        [
+          {
+            "node": "Split Into Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Into Items": {
+      "main": [
+        [
+          {
+            "node": "Format Lead Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Lead Data": {
+      "main": [
+        [
+          {
+            "node": "Has Website?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Website?": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Extract Domain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Domain": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Leads": {
+      "main": [
+        [
+          {
+            "node": "AnyMail Finder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AnyMail Finder": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Wait": {
+      "main": [
+        [
+          {
+            "node": "Merge Email Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Email Data": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Output Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait and Retry": {
+      "main": [
+        [
+          {
+            "node": "Check Run Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "Lead Generation"
+    },
+    {
+      "name": "Google Maps"
+    },
+    {
+      "name": "Apify"
+    }
+  ],
+  "triggerCount": 1,
+  "meta": {
+    "instanceId": "google-maps-lead-gen-v1"
+  }
+}

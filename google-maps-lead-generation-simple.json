@@ -1,0 +1,373 @@
+{
+  "name": "Google Maps Lead Generation - Simple",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Google Maps Lead Scraper",
+        "formDescription": "Enter your search criteria to scrape business leads from Google Maps",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Business Type",
+              "placeholder": "e.g., plumbers, dentists, restaurants, lawyers",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "City",
+              "placeholder": "e.g., Los Angeles, Miami, Chicago",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "State",
+              "placeholder": "e.g., CA, FL, NY",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Zipcode",
+              "placeholder": "e.g., 90210 (optional for more precise location)",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Radius (km)",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {"option": "5"},
+                  {"option": "10"},
+                  {"option": "25"},
+                  {"option": "50"},
+                  {"option": "100"}
+                ]
+              },
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Number of Results",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {"option": "20"},
+                  {"option": "50"},
+                  {"option": "100"},
+                  {"option": "200"},
+                  {"option": "500"}
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "respondWithOptions": {
+            "values": {
+              "respondWith": "text",
+              "formSubmittedText": "✅ Your lead scraping job has been submitted! The scraper is now collecting data from Google Maps. This may take a few minutes depending on the number of results requested."
+            }
+          }
+        }
+      },
+      "id": "form-trigger",
+      "name": "Lead Search Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.1,
+      "position": [0, 300],
+      "webhookId": "google-maps-leads"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "search-query",
+              "name": "searchQuery",
+              "value": "={{ $json['Business Type'] }} in {{ $json['City'] }}{{ $json['State'] ? ', ' + $json['State'] : '' }}{{ $json['Zipcode'] ? ' ' + $json['Zipcode'] : '' }}",
+              "type": "string"
+            },
+            {
+              "id": "max-results",
+              "name": "maxResults",
+              "value": "={{ parseInt($json['Number of Results']) || 50 }}",
+              "type": "number"
+            },
+            {
+              "id": "radius",
+              "name": "radiusKm",
+              "value": "={{ parseInt($json['Radius (km)']) || 10 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-params",
+      "name": "Build Search Query",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/compass~crawler-google-places/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"searchStringsArray\": [\"{{ $json.searchQuery }}\"],\n  \"maxCrawledPlacesPerSearch\": {{ $json.maxResults }},\n  \"language\": \"en\",\n  \"maxImages\": 0,\n  \"maxReviews\": 0,\n  \"onlyDataFromSearchPage\": false,\n  \"scrapeDirectories\": false,\n  \"skipClosedPlaces\": false\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 300000
+        }
+      },
+      "id": "apify-scrape",
+      "name": "Scrape Google Maps",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "YOUR_APIFY_CREDENTIAL_ID",
+          "name": "Apify API Token"
+        }
+      },
+      "notes": "Uses Apify's synchronous endpoint - waits for results"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "has-website",
+              "leftValue": "={{ $json.website }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-website",
+      "name": "Website Exists",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "name",
+              "name": "Business Name",
+              "value": "={{ $json.title }}",
+              "type": "string"
+            },
+            {
+              "id": "category",
+              "name": "Category",
+              "value": "={{ $json.categoryName }}",
+              "type": "string"
+            },
+            {
+              "id": "address",
+              "name": "Full Address",
+              "value": "={{ $json.address }}",
+              "type": "string"
+            },
+            {
+              "id": "street",
+              "name": "Street",
+              "value": "={{ $json.street }}",
+              "type": "string"
+            },
+            {
+              "id": "city",
+              "name": "City",
+              "value": "={{ $json.city }}",
+              "type": "string"
+            },
+            {
+              "id": "state",
+              "name": "State",
+              "value": "={{ $json.state }}",
+              "type": "string"
+            },
+            {
+              "id": "zip",
+              "name": "Zipcode",
+              "value": "={{ $json.postalCode }}",
+              "type": "string"
+            },
+            {
+              "id": "phone",
+              "name": "Phone",
+              "value": "={{ $json.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "website",
+              "name": "Website",
+              "value": "={{ $json.website }}",
+              "type": "string"
+            },
+            {
+              "id": "rating",
+              "name": "Rating",
+              "value": "={{ $json.totalScore }}",
+              "type": "number"
+            },
+            {
+              "id": "reviews",
+              "name": "Review Count",
+              "value": "={{ $json.reviewsCount }}",
+              "type": "number"
+            },
+            {
+              "id": "google-url",
+              "name": "Google Maps URL",
+              "value": "={{ $json.url }}",
+              "type": "string"
+            },
+            {
+              "id": "place-id",
+              "name": "Place ID",
+              "value": "={{ $json.placeId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-data",
+      "name": "Format Lead Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "operation": "removeDuplicates",
+        "compare": "selectedFields",
+        "fieldsToCompare": {
+          "fields": [
+            {
+              "fieldName": "Place ID"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dedupe",
+      "name": "Remove Duplicates",
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {},
+      "id": "output",
+      "name": "Leads Output",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1320, 300]
+    }
+  ],
+  "connections": {
+    "Lead Search Form": {
+      "main": [
+        [
+          {
+            "node": "Build Search Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Search Query": {
+      "main": [
+        [
+          {
+            "node": "Scrape Google Maps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Google Maps": {
+      "main": [
+        [
+          {
+            "node": "Website Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Website Exists": {
+      "main": [
+        [
+          {
+            "node": "Format Lead Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Lead Data": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Leads Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "Lead Generation"
+    },
+    {
+      "name": "Google Maps"
+    }
+  ],
+  "triggerCount": 1,
+  "meta": {
+    "instanceId": "google-maps-simple-v1"
+  }
+}

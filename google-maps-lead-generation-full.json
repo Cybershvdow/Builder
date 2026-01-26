@@ -1,0 +1,935 @@
+{
+  "name": "Google Maps Lead Generation - Full Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "🗺️ Google Maps Lead Generator",
+        "formDescription": "Enter your search criteria to scrape and enrich business leads from Google Maps. Includes email finding and AI-powered personalization.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Business Type / Industry",
+              "placeholder": "e.g., plumbers, HVAC contractors, dentists, real estate agents",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "City",
+              "placeholder": "e.g., Austin, San Francisco, Miami",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "State",
+              "placeholder": "e.g., TX, CA, FL",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Zipcode (Optional)",
+              "placeholder": "e.g., 78701 - for more precise targeting",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Search Radius",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {"option": "5 miles"},
+                  {"option": "10 miles"},
+                  {"option": "25 miles"},
+                  {"option": "50 miles"}
+                ]
+              },
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Maximum Leads",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {"option": "25"},
+                  {"option": "50"},
+                  {"option": "100"},
+                  {"option": "200"},
+                  {"option": "500"}
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Minimum Rating",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {"option": "Any"},
+                  {"option": "3.0+"},
+                  {"option": "3.5+"},
+                  {"option": "4.0+"},
+                  {"option": "4.5+"}
+                ]
+              },
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Find Emails?",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {"option": "Yes - Find emails (slower)"},
+                  {"option": "No - Just basic info (faster)"}
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "respondWithOptions": {
+            "values": {
+              "respondWith": "text",
+              "formSubmittedText": "✅ Lead generation started!\n\nYour request is being processed. The scraper will:\n1. Search Google Maps for matching businesses\n2. Filter by your criteria\n3. Enrich with contact information\n4. Save results to Google Sheets\n\nCheck your Google Sheet for results in a few minutes."
+            }
+          }
+        }
+      },
+      "id": "form-trigger",
+      "name": "Lead Search Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.1,
+      "position": [-200, 300],
+      "webhookId": "gmap-lead-gen-full"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "query",
+              "name": "searchQuery",
+              "value": "={{ $json['Business Type / Industry'] }} in {{ $json['City'] }}, {{ $json['State'] }}{{ $json['Zipcode (Optional)'] ? ' ' + $json['Zipcode (Optional)'] : '' }}",
+              "type": "string"
+            },
+            {
+              "id": "max",
+              "name": "maxResults",
+              "value": "={{ parseInt($json['Maximum Leads']) || 50 }}",
+              "type": "number"
+            },
+            {
+              "id": "min-rating",
+              "name": "minRating",
+              "value": "={{ $json['Minimum Rating'] === 'Any' ? 0 : parseFloat($json['Minimum Rating'].replace('+', '')) || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "find-emails",
+              "name": "findEmails",
+              "value": "={{ $json['Find Emails?'].includes('Yes') }}",
+              "type": "boolean"
+            },
+            {
+              "id": "timestamp",
+              "name": "scrapeTimestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-params",
+      "name": "Prepare Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [20, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/compass~crawler-google-places/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"searchStringsArray\": [\"{{ $json.searchQuery }}\"],\n  \"maxCrawledPlacesPerSearch\": {{ $json.maxResults }},\n  \"language\": \"en\",\n  \"maxImages\": 0,\n  \"maxReviews\": 0,\n  \"placeMinimumStars\": {{ $json.minRating }},\n  \"onlyDataFromSearchPage\": false,\n  \"scrapeDirectories\": false,\n  \"skipClosedPlaces\": true,\n  \"scrapeReviewsPersonalData\": false\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 600000
+        }
+      },
+      "id": "apify-scrape",
+      "name": "Scrape Google Maps",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "YOUR_APIFY_CREDENTIAL_ID",
+          "name": "Apify API Token"
+        }
+      },
+      "notes": "Apify Google Maps Scraper - compass/crawler-google-places"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "has-website",
+              "leftValue": "={{ $json.website }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-website",
+      "name": "Website Exists",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "name",
+              "name": "businessName",
+              "value": "={{ $json.title }}",
+              "type": "string"
+            },
+            {
+              "id": "category",
+              "name": "category",
+              "value": "={{ $json.categoryName }}",
+              "type": "string"
+            },
+            {
+              "id": "address",
+              "name": "fullAddress",
+              "value": "={{ $json.address }}",
+              "type": "string"
+            },
+            {
+              "id": "street",
+              "name": "street",
+              "value": "={{ $json.street }}",
+              "type": "string"
+            },
+            {
+              "id": "city",
+              "name": "city",
+              "value": "={{ $json.city }}",
+              "type": "string"
+            },
+            {
+              "id": "state",
+              "name": "state",
+              "value": "={{ $json.state }}",
+              "type": "string"
+            },
+            {
+              "id": "zip",
+              "name": "zipcode",
+              "value": "={{ $json.postalCode }}",
+              "type": "string"
+            },
+            {
+              "id": "phone",
+              "name": "phone",
+              "value": "={{ $json.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "website",
+              "name": "website",
+              "value": "={{ $json.website }}",
+              "type": "string"
+            },
+            {
+              "id": "rating",
+              "name": "rating",
+              "value": "={{ $json.totalScore }}",
+              "type": "number"
+            },
+            {
+              "id": "reviews",
+              "name": "reviewCount",
+              "value": "={{ $json.reviewsCount }}",
+              "type": "number"
+            },
+            {
+              "id": "google-url",
+              "name": "googleMapsUrl",
+              "value": "={{ $json.url }}",
+              "type": "string"
+            },
+            {
+              "id": "place-id",
+              "name": "placeId",
+              "value": "={{ $json.placeId }}",
+              "type": "string"
+            },
+            {
+              "id": "find-emails",
+              "name": "findEmails",
+              "value": "={{ $('Prepare Parameters').item.json.findEmails }}",
+              "type": "boolean"
+            },
+            {
+              "id": "timestamp",
+              "name": "scrapeTimestamp",
+              "value": "={{ $('Prepare Parameters').item.json.scrapeTimestamp }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "edit-fields",
+      "name": "Edit Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "has-phone",
+              "leftValue": "={{ $json.phone }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-phone",
+      "name": "Has Phone?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-email-flag",
+              "leftValue": "={{ $json.findEmails }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-find-emails",
+      "name": "Find Emails?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop-items",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anymailfinder.com/v5.0/search/company.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"domain\": \"{{ $json.website.replace('https://', '').replace('http://', '').replace('www.', '').split('/')[0] }}\",\n  \"company_name\": \"{{ $json.businessName }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "anymailfinder",
+      "name": "AnyMail Finder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_ANYMAILFINDER_CREDENTIAL_ID",
+          "name": "AnyMailFinder API"
+        }
+      },
+      "notes": "Finds email addresses from company domain"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "has-email",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-has-email",
+      "name": "Email Found?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Loop Over Items').item.json.website }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "scrape-website",
+      "name": "Scrape Website",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 200],
+      "continueOnFail": true,
+      "notes": "Fetches website HTML for additional data extraction"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "pageTitle",
+              "cssSelector": "title"
+            },
+            {
+              "key": "metaDescription",
+              "cssSelector": "meta[name='description']",
+              "attribute": "content"
+            },
+            {
+              "key": "h1Text",
+              "cssSelector": "h1"
+            },
+            {
+              "key": "bodyText",
+              "cssSelector": "body",
+              "returnValue": "text"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "html-extract",
+      "name": "Extract HTML Content",
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [2220, 200]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an expert at analyzing business websites and crafting personalized outreach. Based on the following information about a business, create a brief, personalized icebreaker that could be used in a cold email or call.\n\nBusiness Name: {{ $('Loop Over Items').item.json.businessName }}\nCategory: {{ $('Loop Over Items').item.json.category }}\nWebsite Title: {{ $json.pageTitle }}\nMeta Description: {{ $json.metaDescription }}\nMain Heading: {{ $json.h1Text }}\n\nCreate a 1-2 sentence personalized icebreaker that:\n- References something specific about their business\n- Shows you've done research\n- Is professional but friendly\n- Does NOT include any sales pitch\n\nRespond with ONLY the icebreaker text, nothing else."
+            }
+          ]
+        },
+        "options": {
+          "maxTokens": 150,
+          "temperature": 0.7
+        }
+      },
+      "id": "icebreaker",
+      "name": "Generate Icebreaker",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [2440, 200],
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      },
+      "notes": "AI generates personalized outreach icebreaker"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "all-data",
+              "name": "email",
+              "value": "={{ $('AnyMail Finder').item.json.email || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "email-type",
+              "name": "emailType",
+              "value": "={{ $('AnyMail Finder').item.json.email_type || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "icebreaker",
+              "name": "icebreaker",
+              "value": "={{ $json.message?.content || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "page-title",
+              "name": "websiteTitle",
+              "value": "={{ $('Extract HTML Content').item.json.pageTitle || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "include": "selected",
+        "options": {}
+      },
+      "id": "merge-enriched",
+      "name": "Merge Enriched Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2660, 200]
+    },
+    {
+      "parameters": {
+        "unit": "seconds",
+        "value": 2
+      },
+      "id": "rate-limit",
+      "name": "Rate Limit",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [2880, 200]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Leads",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Business Name": "={{ $json.businessName }}",
+            "Category": "={{ $json.category }}",
+            "Full Address": "={{ $json.fullAddress }}",
+            "City": "={{ $json.city }}",
+            "State": "={{ $json.state }}",
+            "Zipcode": "={{ $json.zipcode }}",
+            "Phone": "={{ $json.phone }}",
+            "Website": "={{ $json.website }}",
+            "Email": "={{ $json.email }}",
+            "Rating": "={{ $json.rating }}",
+            "Review Count": "={{ $json.reviewCount }}",
+            "Google Maps URL": "={{ $json.googleMapsUrl }}",
+            "Icebreaker": "={{ $json.icebreaker }}",
+            "Scraped At": "={{ $json.scrapeTimestamp }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {"id": "Business Name", "displayName": "Business Name", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Category", "displayName": "Category", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Full Address", "displayName": "Full Address", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "City", "displayName": "City", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "State", "displayName": "State", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Zipcode", "displayName": "Zipcode", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Phone", "displayName": "Phone", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Website", "displayName": "Website", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Email", "displayName": "Email", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Rating", "displayName": "Rating", "required": false, "defaultMatch": false, "display": true, "type": "number", "canBeUsedToMatch": true},
+            {"id": "Review Count", "displayName": "Review Count", "required": false, "defaultMatch": false, "display": true, "type": "number", "canBeUsedToMatch": true},
+            {"id": "Google Maps URL", "displayName": "Google Maps URL", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Icebreaker", "displayName": "Icebreaker", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Scraped At", "displayName": "Scraped At", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true}
+          ]
+        },
+        "options": {}
+      },
+      "id": "append-sheet-enriched",
+      "name": "Append to Sheet (Enriched)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [3100, 200],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Leads",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Business Name": "={{ $json.businessName }}",
+            "Category": "={{ $json.category }}",
+            "Full Address": "={{ $json.fullAddress }}",
+            "City": "={{ $json.city }}",
+            "State": "={{ $json.state }}",
+            "Zipcode": "={{ $json.zipcode }}",
+            "Phone": "={{ $json.phone }}",
+            "Website": "={{ $json.website }}",
+            "Email": "",
+            "Rating": "={{ $json.rating }}",
+            "Review Count": "={{ $json.reviewCount }}",
+            "Google Maps URL": "={{ $json.googleMapsUrl }}",
+            "Icebreaker": "",
+            "Scraped At": "={{ $json.scrapeTimestamp }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {"id": "Business Name", "displayName": "Business Name", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Category", "displayName": "Category", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Full Address", "displayName": "Full Address", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "City", "displayName": "City", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "State", "displayName": "State", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Zipcode", "displayName": "Zipcode", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Phone", "displayName": "Phone", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Website", "displayName": "Website", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Email", "displayName": "Email", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Rating", "displayName": "Rating", "required": false, "defaultMatch": false, "display": true, "type": "number", "canBeUsedToMatch": true},
+            {"id": "Review Count", "displayName": "Review Count", "required": false, "defaultMatch": false, "display": true, "type": "number", "canBeUsedToMatch": true},
+            {"id": "Google Maps URL", "displayName": "Google Maps URL", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Icebreaker", "displayName": "Icebreaker", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Scraped At", "displayName": "Scraped At", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true}
+          ]
+        },
+        "options": {}
+      },
+      "id": "append-sheet-basic",
+      "name": "Append to Sheet (Basic)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1340, 400],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "done",
+      "name": "Done",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [3320, 300]
+    }
+  ],
+  "connections": {
+    "Lead Search Form": {
+      "main": [
+        [
+          {
+            "node": "Prepare Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Parameters": {
+      "main": [
+        [
+          {
+            "node": "Scrape Google Maps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Google Maps": {
+      "main": [
+        [
+          {
+            "node": "Website Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Website Exists": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Has Phone?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Phone?": {
+      "main": [
+        [
+          {
+            "node": "Find Emails?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Emails?": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append to Sheet (Basic)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "AnyMail Finder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AnyMail Finder": {
+      "main": [
+        [
+          {
+            "node": "Email Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Found?": {
+      "main": [
+        [
+          {
+            "node": "Scrape Website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Website": {
+      "main": [
+        [
+          {
+            "node": "Extract HTML Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract HTML Content": {
+      "main": [
+        [
+          {
+            "node": "Generate Icebreaker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Icebreaker": {
+      "main": [
+        [
+          {
+            "node": "Merge Enriched Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Enriched Data": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit": {
+      "main": [
+        [
+          {
+            "node": "Append to Sheet (Enriched)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append to Sheet (Enriched)": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append to Sheet (Basic)": {
+      "main": [
+        [
+          {
+            "node": "Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "Lead Generation"
+    },
+    {
+      "name": "Google Maps"
+    },
+    {
+      "name": "Email Enrichment"
+    },
+    {
+      "name": "AI Personalization"
+    }
+  ],
+  "triggerCount": 1,
+  "meta": {
+    "instanceId": "google-maps-full-v1"
+  }
+}
