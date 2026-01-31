@@ -1,51 +1,28 @@
-import type {
-  Company,
-  Driver,
-  EmailIntegration,
-  GpsPoint,
-  GpsSession,
-  LoadOffer,
-  MileageLog,
-  Notification,
-  Tag,
-  TelephonyIntegration,
-  User,
-} from '@prisma/client';
-
-// Re-export Prisma enums
-export {
-  UserRole,
-  Plan,
-  LoadOfferSource,
-  LoadOfferStatus,
-  IntegrationStatus,
-  EmailProvider,
-  TelephonyProvider,
-  NotificationChannel,
-  NotificationStatus,
-  MileageSource,
-  AuditAction,
-} from '@prisma/client';
-
-// Extended types with relations
-export type UserWithCompany = User & {
-  company: Company;
-};
-
-export type DriverWithUser = Driver & {
-  user: User | null;
-};
-
-export type LoadOfferWithRelations = LoadOffer & {
-  decidedBy: User | null;
-  assignedDriver: Driver | null;
-  tags: { tag: Tag }[];
-};
-
-export type GpsSessionWithPoints = GpsSession & {
-  driver: Driver;
-  points: GpsPoint[];
-};
+// Enum types (mirroring Prisma schema)
+export type UserRole = 'OWNER' | 'ADMIN' | 'DISPATCHER' | 'DRIVER';
+export type Plan = 'FREE' | 'STARTER' | 'PROFESSIONAL' | 'ENTERPRISE';
+export type LoadOfferSource = 'EMAIL' | 'PHONE' | 'MANUAL' | 'API';
+export type LoadOfferStatus = 'NEW' | 'PENDING' | 'ACCEPTED' | 'DENIED' | 'EXPIRED';
+export type IntegrationStatus = 'PENDING' | 'ACTIVE' | 'ERROR' | 'DISABLED';
+export type EmailProvider = 'SENDGRID' | 'MAILGUN' | 'AWS_SES' | 'GMAIL' | 'OUTLOOK';
+export type TelephonyProvider = 'TWILIO' | 'VONAGE' | 'BANDWIDTH';
+export type NotificationChannel = 'EMAIL' | 'SMS' | 'VOICE';
+export type NotificationStatus = 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED';
+export type MileageSource = 'MANUAL' | 'GPS' | 'IMPORT';
+export type AuditAction =
+  | 'LOGIN'
+  | 'LOAD_ACCEPTED'
+  | 'LOAD_DENIED'
+  | 'INTEGRATION_ADDED'
+  | 'INTEGRATION_UPDATED'
+  | 'INTEGRATION_REMOVED'
+  | 'GPS_ENABLED'
+  | 'GPS_DISABLED'
+  | 'USER_INVITED'
+  | 'USER_REMOVED'
+  | 'DRIVER_ADDED'
+  | 'DRIVER_REMOVED'
+  | 'SETTINGS_UPDATED';
 
 // API Request/Response types
 export interface ApiResponse<T = void> {

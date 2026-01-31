@@ -1,6 +1,7 @@
-import { PrismaClient, UserRole } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+import type { UserRole } from '@/types';
 import bcrypt from 'bcryptjs';
-import NextAuth, { type NextAuthConfig, type Session, type User as NextAuthUser } from 'next-auth';
+import NextAuth, { type NextAuthConfig, type Session } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { z } from 'zod';
 
@@ -28,18 +29,6 @@ declare module 'next-auth' {
       companyName: string;
       companySlug: string;
     };
-  }
-}
-
-declare module 'next-auth/jwt' {
-  interface JWT {
-    id: string;
-    email: string;
-    name: string;
-    role: UserRole;
-    companyId: string;
-    companyName: string;
-    companySlug: string;
   }
 }
 
@@ -84,7 +73,7 @@ export const authConfig: NextAuthConfig = {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: user.role,
+          role: user.role as UserRole,
           companyId: user.companyId,
           companyName: user.company.name,
           companySlug: user.company.slug,
@@ -93,29 +82,31 @@ export const authConfig: NextAuthConfig = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async jwt({ token, user }: { token: any; user: any }) {
       if (user) {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
-        token.role = user.role as UserRole;
+        token.role = user.role;
         token.companyId = user.companyId;
         token.companyName = user.companyName;
         token.companySlug = user.companySlug;
       }
       return token;
     },
-    async session({ session, token }): Promise<Session> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async session({ session, token }: { session: Session; token: any }): Promise<Session> {
       return {
         ...session,
         user: {
-          id: token.id,
-          email: token.email,
-          name: token.name,
-          role: token.role,
-          companyId: token.companyId,
-          companyName: token.companyName,
-          companySlug: token.companySlug,
+          id: token.id as string,
+          email: token.email as string,
+          name: token.name as string,
+          role: token.role as UserRole,
+          companyId: token.companyId as string,
+          companyName: token.companyName as string,
+          companySlug: token.companySlug as string,
         },
       };
     },

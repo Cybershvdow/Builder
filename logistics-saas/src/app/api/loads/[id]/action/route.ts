@@ -30,7 +30,7 @@ export async function POST(
 
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: parsed.error.errors[0].message },
+        { success: false, error: parsed.error.issues[0].message },
         { status: 400 }
       );
     }
@@ -62,7 +62,7 @@ export async function POST(
     const newStatus = action === 'accept' ? 'ACCEPTED' : 'DENIED';
 
     // Update load and create notification in transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // Update load status
       const updatedLoad = await tx.loadOffer.update({
         where: { id },

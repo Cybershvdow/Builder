@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: parsed.error.errors[0].message },
+        { success: false, error: parsed.error.issues[0].message },
         { status: 400 }
       );
     }
@@ -51,7 +51,8 @@ export async function POST(request: NextRequest) {
     const passwordHash = await bcrypt.hash(password, 12);
 
     // Create company and user in transaction
-    const result = await prisma.$transaction(async (tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await prisma.$transaction(async (tx: any) => {
       // Create company
       const company = await tx.company.create({
         data: {

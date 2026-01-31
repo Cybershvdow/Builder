@@ -1,6 +1,5 @@
 import { getCurrentUser, hasMinRole } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import type { LoadOfferStatus, LoadOfferSource } from '@prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -18,8 +17,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '20');
-    const status = searchParams.get('status') as LoadOfferStatus | null;
-    const sourceType = searchParams.get('sourceType') as LoadOfferSource | null;
+    const status = searchParams.get('status');
+    const sourceType = searchParams.get('sourceType');
     const search = searchParams.get('search');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
@@ -101,7 +100,7 @@ const createLoadSchema = z.object({
   senderCompany: z.string().optional(),
   subject: z.string().optional(),
   bodyText: z.string().optional(),
-  extractedFields: z.record(z.unknown()).optional(),
+  extractedFields: z.record(z.string(), z.unknown()).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -119,7 +118,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: parsed.error.errors[0].message },
+        { success: false, error: parsed.error.issues[0].message },
         { status: 400 }
       );
     }

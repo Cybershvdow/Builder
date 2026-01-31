@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: parsed.error.errors[0].message },
+        { success: false, error: parsed.error.issues[0].message },
         { status: 400 }
       );
     }
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     const passwordHash = await bcrypt.hash(tempPassword, 12);
 
     // Create user
-    const newUser = await prisma.$transaction(async (tx) => {
+    const newUser = await prisma.$transaction(async (tx: any) => {
       const created = await tx.user.create({
         data: {
           companyId: user.companyId,

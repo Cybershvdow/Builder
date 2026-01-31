@@ -56,7 +56,8 @@ export async function GET(request: NextRequest) {
     });
 
     // Calculate totals
-    const totalMiles = logs.reduce((sum, log) => sum + log.miles, 0);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const totalMiles = logs.reduce((sum: number, log: any) => sum + log.miles, 0);
 
     // Generate CSV
     const headers = [
@@ -70,7 +71,8 @@ export async function GET(request: NextRequest) {
       'Notes',
     ];
 
-    const rows = logs.map((log) => [
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows = logs.map((log: any) => [
       formatDate(log.date),
       log.driver.name,
       log.driver.truckId || '',
@@ -103,7 +105,8 @@ export async function GET(request: NextRequest) {
 
     const csv = [
       headers.join(','),
-      ...rows.map((row) => row.map(escapeCSV).join(',')),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...rows.map((row: any) => row.map(escapeCSV).join(',')),
     ].join('\n');
 
     return new NextResponse(csv, {

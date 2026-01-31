@@ -86,9 +86,10 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const locations = activeSessions
-      .filter(session => session.points.length > 0)
-      .map(session => {
+      .filter((session: any) => session.points.length > 0)
+      .map((session: any) => {
         const point = session.points[0];
         return {
           driverId: session.driverId,
@@ -159,7 +160,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: parsed.error.errors[0].message },
+        { success: false, error: parsed.error.issues[0].message },
         { status: 400 }
       );
     }

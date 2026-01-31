@@ -63,7 +63,8 @@ export async function GET(request: NextRequest) {
       'Assigned Driver',
     ];
 
-    const rows = loads.map((load) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows = loads.map((load: any) => {
       const extracted = load.extractedFields as Record<string, unknown> || {};
       const pickup = extracted.pickup as { location?: string } || {};
       const dropoff = extracted.dropoff as { location?: string } || {};
@@ -100,7 +101,8 @@ export async function GET(request: NextRequest) {
 
     const csv = [
       headers.join(','),
-      ...rows.map((row) => row.map(escapeCSV).join(',')),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...rows.map((row: any) => row.map(escapeCSV).join(',')),
     ].join('\n');
 
     return new NextResponse(csv, {

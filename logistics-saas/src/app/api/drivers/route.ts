@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: parsed.error.errors[0].message },
+        { success: false, error: parsed.error.issues[0].message },
         { status: 400 }
       );
     }
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     const { createUserAccount, userPassword, ...driverData } = parsed.data;
 
     // Create driver (and optionally user account) in transaction
-    const driver = await prisma.$transaction(async (tx) => {
+    const driver = await prisma.$transaction(async (tx: any) => {
       let userId: string | undefined;
 
       if (createUserAccount && driverData.email && userPassword) {

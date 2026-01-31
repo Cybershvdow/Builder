@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
           totalMilesThisMonth,
         },
         recentLoads,
-        loadsBySource: loadsBySource.map((s) => ({
+        loadsBySource: loadsBySource.map((s: { sourceType: string; _count: number }) => ({
           source: s.sourceType,
           count: s._count,
         })),

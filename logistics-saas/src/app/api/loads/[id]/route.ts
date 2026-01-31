@@ -64,7 +64,7 @@ export async function GET(
 // PATCH /api/loads/[id] - Update a load offer
 const updateLoadSchema = z.object({
   assignedDriverId: z.string().nullable().optional(),
-  extractedFields: z.record(z.unknown()).optional(),
+  extractedFields: z.record(z.string(), z.unknown()).optional(),
   tags: z.array(z.string()).optional(),
 });
 
@@ -87,7 +87,7 @@ export async function PATCH(
 
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: parsed.error.errors[0].message },
+        { success: false, error: parsed.error.issues[0].message },
         { status: 400 }
       );
     }
@@ -110,7 +110,7 @@ export async function PATCH(
     const { tags, ...updateData } = parsed.data;
 
     // Update load and tags in transaction
-    const load = await prisma.$transaction(async (tx) => {
+    const load = await prisma.$transaction(async (tx: any) => {
       // Update load
       const updated = await tx.loadOffer.update({
         where: { id },
