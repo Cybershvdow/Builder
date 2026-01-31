@@ -23,6 +23,8 @@ import {
   Package,
   Bell,
   ChevronDown,
+  BarChart3,
+  ScrollText,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import Link from 'next/link';
@@ -48,6 +50,10 @@ const navigation = [
   { name: 'Load Offers', href: '/loads', icon: Package },
   { name: 'Drivers', href: '/drivers', icon: Users },
   { name: 'GPS Tracking', href: '/tracking', icon: MapPin },
+  { name: 'Team', href: '/users', icon: Users },
+  { name: 'Reports', href: '/reports', icon: BarChart3 },
+  { name: 'Notifications', href: '/notifications', icon: Bell },
+  { name: 'Audit Logs', href: '/audit-logs', icon: ScrollText },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
@@ -152,10 +158,12 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
 
             <div className="flex items-center gap-3">
               {/* Notifications */}
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="w-5 h-5 text-gray-400" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-cyan-500 rounded-full" />
-              </Button>
+              <Link href="/notifications">
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="w-5 h-5 text-gray-400" />
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-cyan-500 rounded-full" />
+                </Button>
+              </Link>
 
               {/* User dropdown */}
               <DropdownMenu>
