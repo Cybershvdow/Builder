@@ -1,0 +1,440 @@
+// Prisma schema for Multi-tenant Logistics SaaS
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// MULTI-TENANT CORE
+// =============================================================================
+
+enum Plan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+model Company {
+  id                    String   @id @default(cuid())
+  name                  String
+  slug                  String   @unique
+  plan                  Plan     @default(FREE)
+  stripeCustomerId      String?
+  stripeSubscriptionId  String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  users                User[]
+  drivers              Driver[]
+  loadOffers           LoadOffer[]
+  emailIntegrations    EmailIntegration[]
+  telephonyIntegrations TelephonyIntegration[]
+  notifications        Notification[]
+  gpsSessions          GpsSession[]
+  gpsPoints            GpsPoint[]
+  mileageLogs          MileageLog[]
+  auditLogs            AuditLog[]
+  tags                 Tag[]
+
+  @@index([slug])
+}
+
+// =============================================================================
+// USERS & AUTHENTICATION
+// =============================================================================
+
+enum UserRole {
+  OWNER
+  ADMIN
+  DISPATCHER
+  DRIVER
+}
+
+model User {
+  id            String    @id @default(cuid())
+  companyId     String
+  email         String    @unique
+  name          String
+  passwordHash  String?
+  role          UserRole  @default(DISPATCHER)
+  avatarUrl     String?
+  isActive      Boolean   @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  company       Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  driver        Driver?
+  loadDecisions LoadOffer[] @relation("DecisionBy")
+  auditLogs     AuditLog[]
+
+  @@index([companyId])
+  @@index([email])
+}
+
+// =============================================================================
+// DRIVERS
+// =============================================================================
+
+model Driver {
+  id          String   @id @default(cuid())
+  companyId   String
+  userId      String?  @unique
+  name        String
+  phone       String?
+  email       String?
+  truckId     String?
+  licenseNumber String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  gpsSessions GpsSession[]
+  gpsPoints   GpsPoint[]
+  mileageLogs MileageLog[]
+  loadOffers  LoadOffer[]  @relation("AssignedDriver")
+
+  @@index([companyId])
+  @@index([userId])
+}
+
+// =============================================================================
+// INTEGRATIONS
+// =============================================================================
+
+enum IntegrationStatus {
+  PENDING
+  ACTIVE
+  ERROR
+  DISABLED
+}
+
+enum EmailProvider {
+  SENDGRID
+  MAILGUN
+  AWS_SES
+  GMAIL
+  OUTLOOK
+}
+
+model EmailIntegration {
+  id              String            @id @default(cuid())
+  companyId       String
+  provider        EmailProvider     @default(SENDGRID)
+  inboundAddress  String            @unique  // inbound+{companyId}@yourdomain.com
+  forwardingEmail String?                    // user's email that forwards to us
+  oauthTokens     Json?                      // for Gmail/Outlook OAuth
+  smtpConfig      Json?                      // for outbound emails
+  status          IntegrationStatus @default(PENDING)
+  lastSyncAt      DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([inboundAddress])
+}
+
+enum TelephonyProvider {
+  TWILIO
+  VONAGE
+  BANDWIDTH
+}
+
+model TelephonyIntegration {
+  id           String            @id @default(cuid())
+  companyId    String
+  provider     TelephonyProvider @default(TWILIO)
+  phoneNumber  String            @unique
+  accountSid   String?
+  authToken    String?           // encrypted in production
+  voiceWebhook String?
+  smsWebhook   String?
+  status       IntegrationStatus @default(PENDING)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  // Relations
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([phoneNumber])
+}
+
+// =============================================================================
+// LOAD OFFERS
+// =============================================================================
+
+enum LoadOfferSource {
+  EMAIL
+  PHONE
+  MANUAL
+  API
+}
+
+enum LoadOfferStatus {
+  NEW
+  PENDING
+  ACCEPTED
+  DENIED
+  EXPIRED
+}
+
+model LoadOffer {
+  id               String          @id @default(cuid())
+  companyId        String
+  sourceType       LoadOfferSource
+  sourceId         String?         // email message-id or call sid
+
+  // Sender info
+  senderName       String?
+  senderEmail      String?
+  senderPhone      String?
+  senderCompany    String?
+
+  // Content
+  subject          String?
+  bodyText         String?         @db.Text
+  bodyHtml         String?         @db.Text
+  transcript       String?         @db.Text  // for phone calls
+  recordingUrl     String?                   // for phone calls
+
+  // Extracted fields (AI parsed)
+  extractedFields  Json?
+  // Expected structure:
+  // {
+  //   pickup: { location, date, time, contact },
+  //   dropoff: { location, date, time, contact },
+  //   rate: { amount, currency, type: 'flat'|'per_mile' },
+  //   equipment: string,
+  //   weight: string,
+  //   distance: string,
+  //   referenceNumber: string,
+  //   notes: string,
+  //   urgency: 'low'|'medium'|'high'
+  // }
+
+  // Status & workflow
+  status           LoadOfferStatus @default(NEW)
+  decidedByUserId  String?
+  decisionNotes    String?
+  decisionAt       DateTime?
+
+  // Assignment
+  assignedDriverId String?
+
+  // Timestamps
+  receivedAt       DateTime        @default(now())
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  // Relations
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  decidedBy     User?          @relation("DecisionBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+  assignedDriver Driver?       @relation("AssignedDriver", fields: [assignedDriverId], references: [id], onDelete: SetNull)
+  notifications Notification[]
+  tags          LoadOfferTag[]
+
+  @@index([companyId, receivedAt(sort: Desc)])
+  @@index([companyId, status])
+  @@index([companyId, sourceType])
+}
+
+// =============================================================================
+// TAGS (for filtering)
+// =============================================================================
+
+model Tag {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  color     String   @default("#6B7280")
+  createdAt DateTime @default(now())
+
+  company    Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  loadOffers LoadOfferTag[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model LoadOfferTag {
+  loadOfferId String
+  tagId       String
+  assignedAt  DateTime @default(now())
+
+  loadOffer LoadOffer @relation(fields: [loadOfferId], references: [id], onDelete: Cascade)
+  tag       Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([loadOfferId, tagId])
+}
+
+// =============================================================================
+// NOTIFICATIONS
+// =============================================================================
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  VOICE
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+model Notification {
+  id          String             @id @default(cuid())
+  companyId   String
+  loadOfferId String?
+  channel     NotificationChannel
+  toAddress   String              // email, phone number
+  subject     String?
+  body        String              @db.Text
+  payload     Json?               // provider-specific data
+  status      NotificationStatus  @default(PENDING)
+  errorMessage String?
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  // Relations
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  loadOffer LoadOffer? @relation(fields: [loadOfferId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt(sort: Desc)])
+  @@index([loadOfferId])
+}
+
+// =============================================================================
+// GPS TRACKING
+// =============================================================================
+
+model GpsSession {
+  id        String    @id @default(cuid())
+  companyId String
+  driverId  String
+  isActive  Boolean   @default(true)
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  totalMiles Float?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  company  Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  driver   Driver     @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  points   GpsPoint[]
+
+  @@index([companyId, driverId])
+  @@index([companyId, isActive])
+}
+
+model GpsPoint {
+  id         String   @id @default(cuid())
+  companyId  String
+  driverId   String
+  sessionId  String
+  latitude   Float
+  longitude  Float
+  speed      Float?    // mph
+  heading    Float?    // degrees 0-360
+  altitude   Float?    // meters
+  accuracy   Float?    // meters
+  recordedAt DateTime  @default(now())
+
+  // Relations
+  company Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  driver  Driver     @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  session GpsSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, driverId, recordedAt(sort: Desc)])
+  @@index([sessionId])
+}
+
+// =============================================================================
+// MILEAGE LOGS
+// =============================================================================
+
+enum MileageSource {
+  MANUAL
+  GPS
+  IMPORT
+}
+
+model MileageLog {
+  id         String       @id @default(cuid())
+  companyId  String
+  driverId   String
+  date       DateTime     @db.Date
+  miles      Float
+  source     MileageSource @default(MANUAL)
+  startOdometer Float?
+  endOdometer   Float?
+  notes      String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  // Relations
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  driver  Driver  @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, driverId, date(sort: Desc)])
+  @@index([companyId, date(sort: Desc)])
+}
+
+// =============================================================================
+// AUDIT LOGS
+// =============================================================================
+
+enum AuditAction {
+  LOGIN
+  LOAD_ACCEPTED
+  LOAD_DENIED
+  INTEGRATION_ADDED
+  INTEGRATION_UPDATED
+  INTEGRATION_REMOVED
+  GPS_ENABLED
+  GPS_DISABLED
+  USER_INVITED
+  USER_REMOVED
+  DRIVER_ADDED
+  DRIVER_REMOVED
+  SETTINGS_UPDATED
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  companyId  String
+  userId     String?
+  action     AuditAction
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime    @default(now())
+
+  // Relations
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt(sort: Desc)])
+  @@index([userId])
+}
