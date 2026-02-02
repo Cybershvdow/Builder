@@ -80,7 +80,7 @@ export default function DashboardPage() {
         }
 
         const { data: hoursData } = await hoursQuery
-        const totalHours = hoursData?.reduce((sum, e) => sum + (e.total_hours || 0), 0) || 0
+        const totalHours = hoursData?.reduce((sum: number, e: { total_hours?: number }) => sum + (e.total_hours || 0), 0) || 0
 
         // Get active employees count (admin only)
         let activeCount = 1

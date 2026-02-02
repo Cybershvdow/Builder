@@ -49,13 +49,14 @@ export default function MessagesPage() {
           .order('joined_at', { ascending: false })
 
         if (data) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const convos = data
-            .map((d) => d.conversation)
-            .filter((c): c is Conversation => c !== null)
+            .map((d: any) => d.conversation)
+            .filter((c: Conversation | null): c is Conversation => c !== null)
 
           // Fetch participants for each conversation
           const withParticipants = await Promise.all(
-            convos.map(async (convo) => {
+            convos.map(async (convo: Conversation) => {
               const { data: participants } = await supabase
                 .from('conversation_participants')
                 .select('*, user:profiles(*)')
@@ -104,7 +105,7 @@ export default function MessagesPage() {
           table: 'messages',
           filter: `conversation_id=eq.${activeConversation.id}`,
         },
-        async (payload) => {
+        async (payload: { new: { id: string } }) => {
           const { data: newMsg } = await supabase
             .from('messages')
             .select('*, sender:profiles(*)')

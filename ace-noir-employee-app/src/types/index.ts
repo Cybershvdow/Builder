@@ -160,3 +160,98 @@ export interface ExportOptions {
   user_ids?: string[];
   include_details?: boolean;
 }
+
+// Client Types (for billing)
+export interface Client {
+  id: string;
+  company_name: string;
+  contact_name: string;
+  email: string;
+  phone?: string;
+  address: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  notes?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Cleaning Services Types
+export type ServiceCategory = 'standard' | 'deep_clean' | 'specialty' | 'recurring';
+
+export interface CleaningService {
+  id: string;
+  name: string;
+  description: string;
+  category: ServiceCategory;
+  default_rate: number;
+  unit: 'hourly' | 'flat' | 'per_sqft';
+  is_active: boolean;
+}
+
+// Invoice Types
+export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+export type PaymentTerms = 'due_on_receipt' | 'net_15' | 'net_30' | 'net_45' | 'net_60';
+
+export interface InvoiceLineItem {
+  id: string;
+  service_id?: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+}
+
+export interface Invoice {
+  id: string;
+  invoice_number: string;
+  client_id: string;
+  client?: Client;
+  status: InvoiceStatus;
+  issue_date: string;
+  due_date: string;
+  payment_terms: PaymentTerms;
+  line_items: InvoiceLineItem[];
+  subtotal: number;
+  tax_rate: number;
+  tax_amount: number;
+  total: number;
+  notes?: string;
+  terms?: string;
+  paid_date?: string;
+  paid_amount?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Receipt Types
+export type PaymentMethod = 'cash' | 'check' | 'credit_card' | 'debit_card' | 'bank_transfer' | 'other';
+
+export interface Receipt {
+  id: string;
+  receipt_number: string;
+  invoice_id?: string;
+  invoice?: Invoice;
+  client_id: string;
+  client?: Client;
+  payment_date: string;
+  payment_method: PaymentMethod;
+  amount: number;
+  reference_number?: string;
+  notes?: string;
+  line_items: InvoiceLineItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+// Billing Dashboard Stats
+export interface BillingStats {
+  total_invoiced: number;
+  total_paid: number;
+  total_outstanding: number;
+  invoices_count: number;
+  receipts_count: number;
+  clients_count: number;
+}

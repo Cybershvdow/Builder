@@ -68,7 +68,7 @@ export default function AuthenticatedLayout({
     initializeApp()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event) => {
+      async (event: string) => {
         if (event === 'SIGNED_OUT') {
           router.push('/login')
         }

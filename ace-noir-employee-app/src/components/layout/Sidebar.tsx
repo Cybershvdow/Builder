@@ -15,10 +15,12 @@ import {
   Cog6ToothIcon,
   XMarkIcon,
   Bars3Icon,
+  BanknotesIcon,
 } from '@heroicons/react/24/outline'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+  { name: 'Billing', href: '/billing', icon: BanknotesIcon },
   { name: 'Users', href: '/users', icon: UsersIcon, adminOnly: true },
   { name: 'Time Clock', href: '/time-tracking', icon: ClockIcon },
   { name: 'Timesheets', href: '/timesheets', icon: DocumentTextIcon },
