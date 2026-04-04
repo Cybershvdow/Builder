@@ -73,7 +73,7 @@ export default function Contact() {
 
               {/* Calendly placeholder button */}
               <a
-                href="https://calendly.com"
+                href="https://calendly.com/edensystemsai/30min"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group inline-flex items-center gap-3 rounded-full bg-eden-green px-8 py-4 text-sm text-eden-white tracking-wide transition-all duration-500 hover:bg-eden-deep hover:shadow-xl hover:shadow-eden-green/15 hover:gap-4"

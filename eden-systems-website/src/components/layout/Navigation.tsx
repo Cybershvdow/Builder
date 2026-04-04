@@ -95,8 +95,9 @@ export default function Navigation() {
                 </a>
               ))}
               <a
-                href="#contact"
-                onClick={(e) => handleNavClick(e, '#contact')}
+                href="https://calendly.com/edensystemsai/30min"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="ml-4 inline-flex items-center gap-2 rounded-full bg-eden-green px-6 py-2.5 text-sm text-eden-white tracking-wide transition-all duration-300 hover:bg-eden-deep hover:shadow-lg hover:shadow-eden-green/20"
               >
                 Book a Call
